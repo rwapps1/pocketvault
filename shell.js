@@ -5,6 +5,22 @@
 // Event handling (taps, sign-out, lock) lives in app.js.
 
 (function () {
+  // ---- Slide direction for page transitions ----
+  // Pages are ordered like the menu bar. Moving right slides the new page in
+  // from the right; moving left (or back to the vault) slides it from the left.
+  var ORDER = { home: 0, bills: 1, investments: 2, holidays: 3 };
+  var here = document.body.getAttribute("data-page");
+  window.addEventListener("pageswap", function () {
+    try { sessionStorage.setItem("pv-from", here); } catch (e) {}
+  });
+  window.addEventListener("pagereveal", function (e) {
+    if (!e.viewTransition) return;
+    var from = null;
+    try { from = sessionStorage.getItem("pv-from"); } catch (err) {}
+    if (from == null || !(from in ORDER) || from === here) return;
+    e.viewTransition.types.add(ORDER[here] > ORDER[from] ? "forward" : "backward");
+  });
+
   // ---- ONE icon set: used by the boxes, the menu bar and page headers ----
   var PATHS = {
     vault: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5v2"/><path d="M3 8h1.5M3 16h1.5"/>',
@@ -62,6 +78,7 @@
   for (var t = 0; t < TABS.length; t++) {
     html += '<a class="tab" href="' + TABS[t][1] + '" data-go="' + TABS[t][0] + '"' +
       (TABS[t][0] === current ? ' aria-current="page"' : "") + ">" +
+      (TABS[t][0] === current ? '<i class="tab-ind" aria-hidden="true"></i>' : "") +
       icon(TABS[t][3], 1.7) + "<span>" + TABS[t][2] + "</span></a>";
   }
   html += '<button class="tab" type="button" id="account-tab" aria-haspopup="dialog">' +

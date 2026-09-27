@@ -242,6 +242,16 @@ window.addEventListener("pageshow", (e) => {
   if (needsLockOnLoad() && !overlay) { mountLock(); tryUnlock(); }
   else if (lockEnabled() && !overlay) markUnlocked();
 });
+// Heartbeat: while a PocketVault page is on screen and unlocked, record
+// "last used" every second. The next page reads this on arrival, so moving
+// between pages never looks like time away, whatever order the phone
+// opens and closes pages in.
+setInterval(() => {
+  if (document.visibilityState === "visible" && !overlay && !duringPrompt()) {
+    store.sset(S_LAST, String(Date.now()));
+  }
+}, 1000);
+
 window.addEventListener("pagehide", () => {
   // Leaving this page for another page: not "leaving the app", so forget
   // the hidden time (otherwise time spent on the next page would count).

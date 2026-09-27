@@ -16,6 +16,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const OWNER_NAME = "Rob";
+export const VERSION = "6"; // shown in Account — bump with each upload
 
 // ---------- Hide amounts (eye button); first applied in shell.js ----------
 const HIDE_KEY = "pv-hide-amounts";
@@ -214,7 +215,8 @@ async function buildSheet() {
     <div class="sheet-actions">
       <button type="button" class="btn-ghost" id="acc-signout">Sign out</button>
       <button type="button" class="btn-ghost" id="acc-close">Close</button>
-    </div>`;
+    </div>
+    <p class="version">PocketVault version ${VERSION}</p>`;
   document.body.appendChild(d);
 
   d.querySelector("#acc-close").addEventListener("click", () => d.close());

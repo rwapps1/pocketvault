@@ -4,7 +4,7 @@
 // requests go straight to the network; Firestore handles its own offline cache.
 // Bump CACHE when you want to force old cached files to be cleared.
 
-const CACHE = "pocketvault-v5";
+const CACHE = "pocketvault-v6";
 const CORE = [
   "./",
   "./index.html",
@@ -48,7 +48,7 @@ self.addEventListener("fetch", (event) => {
   if (!url.pathname.startsWith(new URL("./", self.location).pathname)) return; // other repos on this domain
 
   event.respondWith(
-    fetch(req)
+    fetch(req, { cache: "no-cache" }) // always check GitHub for a newer copy
       .then((res) => {
         if (res.ok) {
           const copy = res.clone();
