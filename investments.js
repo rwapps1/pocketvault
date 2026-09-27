@@ -1,9 +1,14 @@
 // investments.js — Investments mini app (not built yet)
+//
+// mount(root, ctx) runs each time Investments is opened:
+//   root      — the element holding investments.html's layout
+//   ctx.open  — resolves once signed in and past the fingerprint lock
+// Return a function to tidy up when leaving (e.g. stop Firestore live
+// updates), so nothing keeps running in the background.
 
-import { initPage, open } from "./app.js";
-
-initPage("investments");
-
-open.then(() => {
-  // Investments app code goes here (runs once signed in and past the fingerprint lock).
-});
+export function mount(root, { open }) {
+  open.then(() => {
+    // Investments app code goes here.
+  });
+  return () => {};
+}

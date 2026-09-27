@@ -1,0 +1,58 @@
+<!-- The vault (home screen). Shown inside index.html by main.js.
+     If this file is opened directly, send the visitor to the app instead. -->
+<script>location.replace("./");</script>
+
+<header class="topbar">
+  <div class="brand">
+    <img src="icon.svg" alt="">
+    <span class="wordmark">Pocket<span>Vault</span></span>
+  </div>
+  <button class="square-btn eye-btn" type="button" data-eye aria-label="Hide amounts" aria-pressed="false"></button>
+</header>
+
+<section class="dateline" aria-label="Today">
+  <span class="day" data-day></span>
+  <span class="date" data-date></span>
+</section>
+
+<a class="next-due" href="#bills" data-go="bills" data-next-due hidden>
+  <div>
+    <div class="label">Next due</div>
+    <div class="what" data-next-due-what></div>
+  </div>
+  <span class="amount amt" data-next-due-amount></span>
+</a>
+
+<nav class="boxes" aria-label="Apps">
+  <a class="box" href="#bills" data-go="bills" data-box="bills">
+    <span class="box-glyph" data-icon="bills"></span>
+    <div class="box-body">
+      <span class="box-title">Bills</span>
+      <span class="box-line">Tick off each month</span>
+    </div>
+  </a>
+
+  <a class="box" href="#investments" data-go="investments" data-box="investments">
+    <span class="box-glyph" data-icon="investments"></span>
+    <div class="box-body">
+      <span class="box-title">Investments</span>
+      <span class="box-line">Value and goals</span>
+    </div>
+  </a>
+
+  <a class="box" href="#holidays" data-go="holidays" data-box="holidays">
+    <span class="box-glyph" data-icon="holidays"></span>
+    <div class="box-body">
+      <span class="box-title">Holidays</span>
+      <span class="box-line">Trip budgets</span>
+    </div>
+  </a>
+
+  <div class="box vacant" aria-disabled="true">
+    <span class="box-glyph" data-icon="vacant"></span>
+    <div class="box-body">
+      <span class="box-title">Vacant</span>
+      <span class="box-line">Reserved for later</span>
+    </div>
+  </div>
+</nav>

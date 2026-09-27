@@ -1,35 +1,15 @@
-<!doctype html>
-<html lang="en-GB">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Holidays · PocketVault</title>
-  <meta name="theme-color" content="#ECEEF1" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0E1013" media="(prefers-color-scheme: dark)">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="app.css">
-  <script type="module" src="./auth-guard.js"></script>
-  <script type="module" src="./holidays.js"></script>
-</head>
-<body data-page="holidays">
-  <main class="page">
-    <header class="subbar">
-      <a id="back-btn" class="square-btn" href="./" aria-label="Back to the vault"><span data-icon="back"></span></a>
-      <h1>Holidays</h1>
-      <button id="eye-btn" class="square-btn eye-btn" type="button" aria-label="Hide amounts" aria-pressed="false"></button>
-    </header>
+<!-- Holidays mini app layout. Shown inside index.html by main.js.
+     If this file is opened directly, send the visitor to the app instead. -->
+<script>location.replace("./#holidays");</script>
 
-    <section class="plate empty-state">
-      <span class="box-glyph" data-icon="holidays"></span>
-      <h2>Coming soon</h2>
-      <p>Your holiday cost trackers will live here.</p>
-    </section>
-  </main>
-  <script src="shell.js"></script>
-</body>
-</html>
+<header class="subbar">
+  <a class="square-btn" href="./" data-back aria-label="Back to the vault"><span data-icon="back"></span></a>
+  <h1>Holidays</h1>
+  <button class="square-btn eye-btn" type="button" data-eye aria-label="Hide amounts" aria-pressed="false"></button>
+</header>
+
+<section class="plate empty-state">
+  <span class="box-glyph" data-icon="holidays"></span>
+  <h2>Coming soon</h2>
+  <p>Your holiday cost trackers will live here.</p>
+</section>

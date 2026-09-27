@@ -9,7 +9,7 @@
 //   - when the app is opened fresh (a new session)
 //   - when you come back after it has been in the background longer than
 //     the chosen time (Immediately / 1 min / 5 min)
-// Moving between PocketVault pages never asks again.
+// PocketVault is one page, so moving between mini apps is never "leaving".
 // Signing in with your password counts as unlocking.
 // -----------------------------------------------------------------------
 
@@ -20,8 +20,8 @@ const K_CRED = "pv-lock-cred";
 const K_AFTER = "pv-lock-after";
 const S_UNLOCKED = "pv-unlocked";
 const S_LAST = "pv-last-active";
-const GRACE_MS = 3000;   // page-to-page moves inside PocketVault never lock
-const RETURN_MS = 500;   // "Immediately": any real trip out of the app
+const RELOAD_GRACE_MS = 3000; // a quick reload of the app doesn't re-lock
+const RETURN_MS = 500;        // "Immediately": any real trip out of the app
 
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -110,20 +110,12 @@ function markUnlocked() {
   store.sset(S_LAST, String(Date.now()));
 }
 
-// On page load (moving between pages) allow a short grace period.
-function tooLongAway(since) {
-  return Date.now() - since > Math.max(lockAfterMs(), GRACE_MS);
-}
-// Coming back to the same page after leaving the app: no grace period,
-// so "Immediately" really means immediately.
-function tooLongAwayReturn(since) {
-  return Date.now() - since > Math.max(lockAfterMs(), RETURN_MS);
-}
-
+// Opened fresh (new session) → lock. Reloaded moments after use → don't.
 function needsLockOnLoad() {
   if (!lockEnabled()) return false;
   if (store.sget(S_UNLOCKED) !== "1") return true;
-  return tooLongAway(Number(store.sget(S_LAST) || 0));
+  const last = Number(store.sget(S_LAST) || 0);
+  return Date.now() - last > Math.max(lockAfterMs(), RELOAD_GRACE_MS);
 }
 
 // ---------- lock screen ----------
@@ -216,45 +208,32 @@ if (needsLockOnLoad()) {
   resolveUnlocked();
 }
 
-// Track time away, and re-lock when coming back after too long.
+// Track time away from the app, and re-lock when coming back after too long.
 // The fingerprint prompt itself can briefly hide the page on some phones,
 // so changes during (or just after) a prompt are ignored.
 let hiddenAt = 0;
-const duringPrompt = () => busy || Date.now() - promptEndedAt < 1500 || enrolling;
+const duringPrompt = () => busy || enrolling || Date.now() - promptEndedAt < 1500;
 document.addEventListener("visibilitychange", () => {
   if (duringPrompt()) return;
   if (document.visibilityState === "hidden") {
     hiddenAt = Date.now();
     if (!overlay) store.sset(S_LAST, String(hiddenAt));
-  } else if (lockEnabled() && !overlay && hiddenAt && tooLongAwayReturn(hiddenAt)) {
+  } else {
+    const away = hiddenAt ? Date.now() - hiddenAt : 0;
     hiddenAt = 0;
-    mountLock();
-    tryUnlock();
+    if (lockEnabled() && !overlay && away > Math.max(lockAfterMs(), RETURN_MS)) {
+      mountLock();
+      tryUnlock();
+    }
   }
 });
-// Coming back to a page restored from the back/forward cache (e.g. going
-// back to the vault from a mini app). This is a move INSIDE PocketVault,
-// so judge it like a page load: by when you last used any PocketVault
-// page, not by how long this particular page was out of sight.
-window.addEventListener("pageshow", (e) => {
-  if (!e.persisted) return;
-  hiddenAt = 0;
-  if (needsLockOnLoad() && !overlay) { mountLock(); tryUnlock(); }
-  else if (lockEnabled() && !overlay) markUnlocked();
-});
-// Heartbeat: while a PocketVault page is on screen and unlocked, record
-// "last used" every second. The next page reads this on arrival, so moving
-// between pages never looks like time away, whatever order the phone
-// opens and closes pages in.
+
+// Keep "last used" fresh while on screen, for the reload check above.
 setInterval(() => {
   if (document.visibilityState === "visible" && !overlay && !duringPrompt()) {
     store.sset(S_LAST, String(Date.now()));
   }
 }, 1000);
-
 window.addEventListener("pagehide", () => {
-  // Leaving this page for another page: not "leaving the app", so forget
-  // the hidden time (otherwise time spent on the next page would count).
-  hiddenAt = 0;
   if (!overlay) store.sset(S_LAST, String(Date.now()));
 });

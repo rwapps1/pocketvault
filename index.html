@@ -16,65 +16,12 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="app.css">
   <script type="module" src="./auth-guard.js"></script>
-  <script type="module" src="./home.js"></script>
+  <script type="module" src="./main.js"></script>
 </head>
-<body data-page="home">
-  <main class="page">
-    <header class="topbar">
-      <div class="brand">
-        <img src="icon.svg" alt="">
-        <span class="wordmark">Pocket<span>Vault</span></span>
-      </div>
-      <button id="eye-btn" class="square-btn eye-btn" type="button" aria-label="Hide amounts" aria-pressed="false"></button>
-    </header>
-
-    <section class="dateline" aria-label="Today">
-      <span class="day" id="day-text"></span>
-      <span class="date" id="date-text"></span>
-    </section>
-
-    <a class="next-due" id="next-due" href="bills.html" data-go="bills" hidden>
-      <div>
-        <div class="label">Next due</div>
-        <div class="what" id="next-due-what"></div>
-      </div>
-      <span class="amount amt" id="next-due-amount"></span>
-    </a>
-
-    <nav class="boxes" id="boxes" aria-label="Apps">
-      <a class="box" href="bills.html" data-go="bills" data-box="bills">
-        <span class="box-glyph" data-icon="bills"></span>
-        <div class="box-body">
-          <span class="box-title">Bills</span>
-          <span class="box-line">Tick off each month</span>
-        </div>
-      </a>
-
-      <a class="box" href="investments.html" data-go="investments" data-box="investments">
-        <span class="box-glyph" data-icon="investments"></span>
-        <div class="box-body">
-          <span class="box-title">Investments</span>
-          <span class="box-line">Value and goals</span>
-        </div>
-      </a>
-
-      <a class="box" href="holidays.html" data-go="holidays" data-box="holidays">
-        <span class="box-glyph" data-icon="holidays"></span>
-        <div class="box-body">
-          <span class="box-title">Holidays</span>
-          <span class="box-line">Trip budgets</span>
-        </div>
-      </a>
-
-      <div class="box vacant" aria-disabled="true">
-        <span class="box-glyph" data-icon="vacant"></span>
-        <div class="box-body">
-          <span class="box-title">Vacant</span>
-          <span class="box-line">Reserved for later</span>
-        </div>
-      </div>
-    </nav>
-  </main>
+<body>
+  <!-- PocketVault is a single page. Each mini app's layout lives in its own
+       file (vault.html, bills.html, ...) and is shown in here by main.js. -->
+  <div id="viewport"></div>
   <script src="shell.js"></script>
 </body>
 </html>
