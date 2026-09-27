@@ -1,10 +1,9 @@
 // holidays.js — Holidays mini app (not built yet)
 
-import { ready, wireBackButton, registerSW } from "./app.js";
+import { initPage, open } from "./app.js";
 
-wireBackButton();
-registerSW();
+initPage("holidays");
 
-ready.then(() => {
-  // Holidays app code goes here.
+open.then(() => {
+  // Holidays app code goes here (runs once signed in and past the fingerprint lock).
 });

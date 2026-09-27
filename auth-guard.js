@@ -38,6 +38,10 @@ export const auth = getAuth(app);
 let resolveReady;
 export const userReady = new Promise((res) => { resolveReady = res; });
 
+// True when this page load's sign-in came from typing the password
+// (lock.js treats that as already unlocked).
+export let freshSignIn = false;
+
 export function signOutUser() {
   return signOut(auth);
 }
@@ -50,31 +54,32 @@ overlay.id = "auth-guard-overlay";
 overlay.innerHTML = `
   <style>
     #auth-guard-overlay {
-      --ag-bg: #EEF0F2; --ag-card: #FFFFFF; --ag-text: #1A1F24; --ag-muted: #56606A;
-      --ag-border: #D9DDE2; --ag-field: #F5F6F8; --ag-accent: #8C6A1F;
+      --ag-bg: #ECEEF1; --ag-card: #FFFFFF; --ag-text: #15181C; --ag-muted: #5A636D;
+      --ag-border: #CDD2D8; --ag-field: #F4F5F7; --ag-accent: #8C6A1F; --ag-inner: #E3E6EA;
       --ag-btn: #1E2329; --ag-btn-text: #E4C77F; --ag-err: #A4422F; --ag-ok: #2F6B52;
       position: fixed; inset: 0; z-index: 999999;
       background: var(--ag-bg); color: var(--ag-text);
       display: flex; align-items: center; justify-content: center;
-      font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: Barlow, system-ui, -apple-system, "Segoe UI", sans-serif;
       padding: 20px; box-sizing: border-box;
     }
     @media (prefers-color-scheme: dark) {
       #auth-guard-overlay {
-        --ag-bg: #0F1215; --ag-card: #1A1F24; --ag-text: #ECEFF2; --ag-muted: #9AA4AE;
-        --ag-border: #2A3139; --ag-field: #12161A; --ag-accent: #D8B25E;
-        --ag-btn: #C9A04E; --ag-btn-text: #15191D; --ag-err: #E58B78; --ag-ok: #8CCBAE;
+        --ag-bg: #0E1013; --ag-card: #181B20; --ag-text: #E8EAED; --ag-muted: #9AA3AD;
+        --ag-border: #30363E; --ag-field: #121418; --ag-accent: #D4B062; --ag-inner: #262B32;
+        --ag-btn: #D4B062; --ag-btn-text: #15191D; --ag-err: #E58B78; --ag-ok: #8CCBAE;
       }
     }
     #auth-guard-overlay .box {
       background: var(--ag-card); border: 1px solid var(--ag-border);
-      padding: 32px 24px 24px; border-radius: 24px;
+      padding: 32px 24px 24px; border-radius: 6px;
+      box-shadow: inset 0 0 0 5px var(--ag-card), inset 0 0 0 6px var(--ag-inner);
       width: 100%; max-width: 320px; text-align: center; box-sizing: border-box;
     }
     #auth-guard-overlay .logo { width: 64px; height: 64px; display: block; margin: 0 auto 14px; }
     #auth-guard-overlay h2 {
-      font-family: Fraunces, Georgia, serif; font-weight: 600;
-      margin: 0 0 4px; font-size: 1.6rem; letter-spacing: -0.01em;
+      font-family: "Barlow Condensed", Barlow, sans-serif; font-weight: 600;
+      margin: 0 0 4px; font-size: 1.5rem; letter-spacing: 0.16em; text-transform: uppercase;
     }
     #auth-guard-overlay h2 span { color: var(--ag-accent); }
     #auth-guard-overlay p { margin: 0 0 22px; color: var(--ag-muted); font-size: 0.9rem; }
@@ -83,15 +88,16 @@ overlay.innerHTML = `
       color: var(--ag-muted); margin: 0 0 6px;
     }
     #auth-guard-overlay input {
-      width: 100%; padding: 12px 14px; margin-bottom: 14px; border-radius: 12px;
+      width: 100%; padding: 12px 14px; margin-bottom: 14px; border-radius: 6px;
       border: 1px solid var(--ag-border); background: var(--ag-field); color: var(--ag-text);
       font-size: 1rem; font-family: inherit; box-sizing: border-box;
     }
     #auth-guard-overlay input:focus { outline: 2px solid var(--ag-accent); outline-offset: 1px; }
     #auth-guard-overlay button {
-      width: 100%; min-height: 48px; border-radius: 12px; border: none;
+      width: 100%; min-height: 48px; border-radius: 6px; border: none;
       background: var(--ag-btn); color: var(--ag-btn-text);
-      font-size: 1rem; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 4px;
+      font-size: 1.1rem; font-weight: 700; font-family: "Barlow Condensed", Barlow, sans-serif;
+      letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; margin-top: 4px;
     }
     #auth-guard-overlay button:disabled { opacity: 0.6; }
     #auth-guard-overlay .err { color: var(--ag-err); font-size: 0.85rem; margin-top: 12px; min-height: 1em; }
@@ -100,6 +106,7 @@ overlay.innerHTML = `
       display: inline-block; margin-top: 10px; padding: 8px; font-size: 0.85rem;
       color: var(--ag-muted); background: none; border: none; width: auto; min-height: 0;
       font-weight: 500; text-decoration: underline;
+      font-family: inherit; text-transform: none; letter-spacing: 0;
     }
   </style>
   <div class="box">
@@ -166,6 +173,7 @@ function hideOverlay() {
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
+    if (document.body.contains(overlay)) freshSignIn = true;
     hideOverlay();
     resolveReady(user);
   } else {

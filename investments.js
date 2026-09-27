@@ -1,10 +1,9 @@
 // investments.js — Investments mini app (not built yet)
 
-import { ready, wireBackButton, registerSW } from "./app.js";
+import { initPage, open } from "./app.js";
 
-wireBackButton();
-registerSW();
+initPage("investments");
 
-ready.then(() => {
-  // Investments app code goes here.
+open.then(() => {
+  // Investments app code goes here (runs once signed in and past the fingerprint lock).
 });

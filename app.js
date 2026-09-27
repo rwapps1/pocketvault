@@ -1,7 +1,8 @@
-// app.js — shared helpers for every PocketVault page
-// Import from a page script:  import { ready, col, doc, formatGBP } from "./app.js";
+// app.js — shared code for every PocketVault page
+// Each page script calls initPage("home" | "bills" | "investments" | "holidays").
 
 import { app, auth, userReady, signOutUser } from "./auth-guard.js";
+import { lockSupported, lockEnabled, enableLock, disableLock, lockAfterMs, setLockAfter, unlocked } from "./lock.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   initializeFirestore,
@@ -16,7 +17,13 @@ import {
 
 export const OWNER_NAME = "Rob";
 
-// Firestore with an offline cache, so ticks made without signal sync later.
+// ---------- Hide amounts (eye button) — applied before anything shows ----------
+const HIDE_KEY = "pv-hide-amounts";
+function readHide() { try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; } }
+document.documentElement.classList.toggle("pv-hide", readHide());
+
+// ---------- Firestore ----------
+// Keeps an offline copy so ticks made without signal sync later.
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
 });
@@ -25,12 +32,14 @@ export const db = initializeFirestore(app, {
 let currentUser = null;
 export const ready = userReady.then((user) => { currentUser = user; return user; });
 
+export function col(name, ...more) {
+  return collection(db, "pocketvault", currentUser.uid, name, ...more);
+}
+export function doc(name, ...more) {
+  return fsDoc(db, "pocketvault", currentUser.uid, name, ...more);
+}
+
 // ---------- Offline copy: wiped whenever you're signed out ----------
-// Firestore keeps a copy of your data on the device so the app works
-// without signal. That copy is deleted:
-//   1. when you tap Sign out here (after warning about unsynced changes), and
-//   2. when a page opens and finds you signed out (e.g. you signed out in
-//      another of your tools, or changed your password).
 let wiped = false;
 async function wipeLocalCopy() {
   if (wiped) return;
@@ -39,21 +48,18 @@ async function wipeLocalCopy() {
     await terminate(db);
     await clearIndexedDbPersistence(db);
   } catch (e) {
-    // e.g. another PocketVault tab still open; it will be retried next time
     console.warn("PocketVault: couldn't clear offline copy", e);
   }
 }
 
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    // Signed back in after the copy was wiped on this page: start fresh.
-    if (wiped) location.reload();
+    if (wiped) location.reload(); // signed back in after a wipe: start fresh
   } else {
     wipeLocalCopy();
   }
 });
 
-// True if everything has reached the server, false if changes are still waiting.
 function allSynced(timeoutMs = 1500) {
   return Promise.race([
     waitForPendingWrites(db).then(() => true),
@@ -61,14 +67,14 @@ function allSynced(timeoutMs = 1500) {
   ]);
 }
 
-function confirmDialog(message, okText, cancelText) {
+export function confirmDialog(message, okText, cancelText) {
   return new Promise((resolve) => {
     const dlg = document.createElement("dialog");
     dlg.className = "pv-dialog";
     dlg.innerHTML = `
       <p></p>
       <div class="pv-dialog-actions">
-        <button type="button" class="pv-dialog-cancel"></button>
+        <button type="button" class="btn-ghost pv-dialog-cancel"></button>
         <button type="button" class="btn pv-dialog-ok"></button>
       </div>`;
     dlg.querySelector("p").textContent = message;
@@ -77,14 +83,14 @@ function confirmDialog(message, okText, cancelText) {
     const finish = (val) => { dlg.close(); dlg.remove(); resolve(val); };
     dlg.querySelector(".pv-dialog-ok").addEventListener("click", () => finish(true));
     dlg.querySelector(".pv-dialog-cancel").addEventListener("click", () => finish(false));
-    dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); }); // phone back button / Esc
+    dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); }); // phone back button
     document.body.appendChild(dlg);
     dlg.showModal();
   });
 }
 
-export async function secureSignOut() {
-  if (!(await allSynced())) {
+export async function secureSignOut({ skipCheck = false } = {}) {
+  if (!skipCheck && !(await allSynced())) {
     const go = await confirmDialog(
       "You have changes that haven't synced yet. Signing out now will lose them.",
       "Sign out anyway",
@@ -97,89 +103,224 @@ export async function secureSignOut() {
   location.reload();
 }
 
-export function col(name, ...more) {
-  return collection(db, "pocketvault", currentUser.uid, name, ...more);
-}
-export function doc(name, ...more) {
-  return fsDoc(db, "pocketvault", currentUser.uid, name, ...more);
-}
+// "Use password instead" on the lock screen
+document.addEventListener("pv-use-password", () => secureSignOut({ skipCheck: true }));
 
 // ---------- Formatting ----------
 const gbp = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" });
 const gbp0 = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 export const formatGBP = (n, whole = false) => (whole ? gbp0 : gbp).format(Number(n) || 0);
-
 export function formatPct(n) {
   const v = Number(n) || 0;
   return `${v > 0 ? "+" : ""}${v.toFixed(1)}%`;
 }
-
-// "2026-09" style key for the current (or given) month
 export function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export function longDate(d = new Date()) {
-  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+// ---------- Icons: ONE set, used by the boxes, the menu bar and page headers ----------
+const svg = (body, sw = 1.4) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+
+const ICON_PATHS = {
+  vault: `<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5v2"/><path d="M3 8h1.5M3 16h1.5"/>`,
+  bills: `<rect x="3" y="6" width="18" height="13" rx="1.5"/><path d="M3.5 7l8.5 6 8.5-6"/><path d="M15 16h3"/>`,
+  investments: `<ellipse cx="9" cy="17" rx="6" ry="2.2"/><path d="M3 17v2.5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V17"/><ellipse cx="9" cy="12" rx="6" ry="2.2"/><path d="M3 12v2.5c0 .9 1.6 1.7 3.8 2"/><path d="M15 14.5V12"/><path d="M16 8l3-3 2 2"/><path d="M13 4h6v6"/>`,
+  holidays: `<path d="M7 15a5 5 0 0 1 10 0"/><path d="M12 5v2M5 8l1.4 1.4M19 8l-1.4 1.4M3 15h2M19 15h2"/><path d="M2 18.5c1.7 0 1.7-1 3.3-1s1.7 1 3.4 1 1.7-1 3.3-1 1.7 1 3.3 1 1.7-1 3.4-1 1.6 1 3.3 1"/><path d="M5 21.5c1.3 0 1.3-.8 2.6-.8s1.3.8 2.6.8 1.3-.8 2.6-.8 1.3.8 2.6.8 1.3-.8 2.6-.8"/>`,
+  vacant: `<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>`,
+  eye: `<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>`,
+  eyeOff: `<path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>`,
+  back: `<path d="M15 18l-6-6 6-6"/>`
+};
+export function icon(name, strokeWidth) {
+  const sw = strokeWidth ?? (["eye", "eyeOff", "back"].includes(name) ? 1.8 : 1.4);
+  return svg(ICON_PATHS[name] || "", sw);
+}
+function fillIcons(root = document) {
+  root.querySelectorAll("[data-icon]").forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
 }
 
-export function greeting(d = new Date()) {
-  const h = d.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
+// ---------- Navigation ----------
+// Tabs keep one level above home, so the phone's back button always
+// returns to the vault and then leaves the app.
+const PAGES = { home: "./", bills: "bills.html", investments: "investments.html", holidays: "holidays.html" };
+const HOME_BELOW = "pv-home-below";
+const ss = {
+  get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} }
+};
+
+export function goHome() {
+  if (ss.get(HOME_BELOW) === "1") history.back();
+  else location.replace(new URL("./", location.href).href);
 }
 
-// ---------- Account menu (the round initial button) ----------
-export function wireAccountMenu() {
-  const btn = document.getElementById("account-btn");
-  const menu = document.getElementById("account-menu");
-  if (!btn || !menu) return;
-
-  ready.then((user) => {
-    const email = user.email || "";
-    btn.textContent = (email[0] || "R").toUpperCase();
-    const emailEl = document.getElementById("account-email");
-    if (emailEl) emailEl.textContent = email;
-  });
-
-  const close = () => { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); };
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const open = menu.hidden;
-    menu.hidden = !open;
-    btn.setAttribute("aria-expanded", String(open));
-  });
-  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) close(); });
-
-  const out = document.getElementById("signout-btn");
-  if (out) out.addEventListener("click", () => { close(); secureSignOut(); });
+function goTo(current, target) {
+  if (target === current) return;
+  if (target === "home") return goHome();
+  if (current === "home") { ss.set(HOME_BELOW, "1"); location.href = PAGES[target]; }
+  else location.replace(PAGES[target]);
 }
 
-// ---------- Back button on mini-app pages ----------
-// Each mini app is its own page, so the phone's back button already works
-// through normal browser history. The on-screen back arrow does the same
-// thing when we came from the home screen, otherwise it goes home directly
-// (e.g. if the page was opened from a bookmark).
-export function wireBackButton() {
-  const back = document.getElementById("back-btn");
-  if (!back) return;
-  back.addEventListener("click", (e) => {
+const TABS = [
+  { key: "home", label: "Vault", icon: "vault" },
+  { key: "bills", label: "Bills", icon: "bills" },
+  { key: "investments", label: "Invest", icon: "investments" },
+  { key: "holidays", label: "Holidays", icon: "holidays" }
+];
+
+function renderTabbar(current) {
+  const nav = document.createElement("nav");
+  nav.className = "tabbar";
+  nav.setAttribute("aria-label", "Main");
+  nav.innerHTML = TABS.map((t) =>
+    `<a class="tab" href="${PAGES[t.key]}" data-go="${t.key}"${t.key === current ? ' aria-current="page"' : ""}>${icon(t.icon, 1.7)}<span>${t.label}</span></a>`
+  ).join("") +
+    `<button class="tab" type="button" id="account-tab" aria-haspopup="dialog"><span class="initial" id="account-initial">R</span><span>Account</span></button>`;
+  document.body.appendChild(nav);
+
+  nav.querySelectorAll("[data-go]").forEach((a) => a.addEventListener("click", (e) => {
     e.preventDefault();
-    const ref = document.referrer;
-    const home = new URL("./", location.href).href;
-    const cameFromHome = ref && (ref === home || ref === home + "index.html");
-    if (cameFromHome && history.length > 1) history.back();
-    else location.replace(home);
+    goTo(current, a.dataset.go);
+  }));
+  nav.querySelector("#account-tab").addEventListener("click", openAccount);
+  ready.then((u) => {
+    nav.querySelector("#account-initial").textContent = ((u.email || "R")[0]).toUpperCase();
   });
+}
+
+// ---------- Eye button ----------
+function wireEye() {
+  const btn = document.getElementById("eye-btn");
+  if (!btn) return;
+  const paint = () => {
+    const hidden = document.documentElement.classList.contains("pv-hide");
+    btn.innerHTML = icon(hidden ? "eyeOff" : "eye");
+    btn.setAttribute("aria-pressed", String(hidden));
+    btn.setAttribute("aria-label", hidden ? "Show amounts" : "Hide amounts");
+  };
+  paint();
+  btn.addEventListener("click", () => {
+    const hidden = !document.documentElement.classList.contains("pv-hide");
+    document.documentElement.classList.toggle("pv-hide", hidden);
+    try { localStorage.setItem(HIDE_KEY, hidden ? "1" : "0"); } catch {}
+    paint();
+  });
+}
+
+// ---------- Account sheet ----------
+let sheet = null;
+async function openAccount() {
+  if (!sheet) sheet = await buildSheet();
+  refreshSheet();
+  sheet.showModal();
+}
+
+const LOCK_OPTIONS = [[0, "Immediately"], [60000, "1 min"], [300000, "5 min"]];
+
+async function buildSheet() {
+  const supported = await lockSupported();
+  const d = document.createElement("dialog");
+  d.className = "sheet";
+  d.setAttribute("aria-label", "Account");
+  d.innerHTML = `
+    <div class="sheet-grip"></div>
+    <h2>Account</h2>
+    <p class="email" id="acc-email"></p>
+    <div class="sheet-row">
+      <div class="txt">
+        <strong>Fingerprint lock</strong>
+        <small id="lock-note">${supported ? "Ask for your fingerprint when opening PocketVault" : "Not available on this device"}</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="lock-toggle" aria-label="Fingerprint lock"${supported ? "" : " disabled"}>
+        <span class="track"></span>
+      </label>
+    </div>
+    <div class="lock-after">
+      <small>Lock again after the app has been in the background for</small>
+      <div class="segmented" id="lock-after" role="group" aria-label="Lock after">
+        ${LOCK_OPTIONS.map(([ms, label]) => `<button type="button" data-ms="${ms}">${label}</button>`).join("")}
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn-ghost" id="acc-signout">Sign out</button>
+      <button type="button" class="btn-ghost" id="acc-close">Close</button>
+    </div>`;
+  document.body.appendChild(d);
+
+  d.querySelector("#acc-close").addEventListener("click", () => d.close());
+  d.addEventListener("click", (e) => { if (e.target === d) d.close(); }); // tap outside
+  d.querySelector("#acc-signout").addEventListener("click", () => { d.close(); secureSignOut(); });
+
+  const toggle = d.querySelector("#lock-toggle");
+  const note = d.querySelector("#lock-note");
+  toggle.addEventListener("change", async () => {
+    if (toggle.checked) {
+      toggle.disabled = true;
+      note.textContent = "Touch the fingerprint sensor…";
+      try {
+        await enableLock(currentUser && currentUser.email);
+        note.textContent = "On. PocketVault will ask for your fingerprint.";
+      } catch (e) {
+        toggle.checked = false;
+        note.textContent = "Not turned on — the fingerprint check was cancelled.";
+      }
+      toggle.disabled = false;
+    } else {
+      disableLock();
+      note.textContent = "Off.";
+    }
+    refreshSheet();
+  });
+
+  d.querySelectorAll("#lock-after button").forEach((b) => b.addEventListener("click", () => {
+    setLockAfter(Number(b.dataset.ms));
+    refreshSheet();
+  }));
+  return d;
+}
+
+function refreshSheet() {
+  if (!sheet) return;
+  sheet.querySelector("#acc-email").textContent = (currentUser && currentUser.email) || "";
+  const on = lockEnabled();
+  sheet.querySelector("#lock-toggle").checked = on;
+  const seg = sheet.querySelector("#lock-after");
+  seg.setAttribute("aria-disabled", String(!on));
+  const current = lockAfterMs();
+  seg.querySelectorAll("button").forEach((b) =>
+    b.setAttribute("aria-pressed", String(Number(b.dataset.ms) === current)));
 }
 
 // ---------- Service worker (lets Chrome install the app) ----------
-export function registerSW() {
+function registerSW() {
   if ("serviceWorker" in navigator) {
-    const swUrl = new URL("./sw.js", import.meta.url);
-    navigator.serviceWorker.register(swUrl).catch(() => {});
+    navigator.serviceWorker.register(new URL("./sw.js", import.meta.url)).catch(() => {});
   }
 }
 
-export { auth };
+// ---------- Page set-up ----------
+export function initPage(current) {
+  fillIcons();
+  renderTabbar(current);
+  wireEye();
+
+  const back = document.getElementById("back-btn");
+  if (back) back.addEventListener("click", (e) => { e.preventDefault(); goHome(); });
+
+  if (current === "home") {
+    window.addEventListener("pageshow", () => ss.set(HOME_BELOW, "0"));
+    ss.set(HOME_BELOW, "0");
+    document.querySelectorAll("main a[data-go]").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault();
+      goTo("home", a.dataset.go);
+    }));
+  }
+  registerSW();
+}
+
+// Resolves once signed in AND past the fingerprint lock.
+export const open = Promise.all([ready, unlocked]).then(([u]) => u);
+
+export { auth, icon as iconSvg };

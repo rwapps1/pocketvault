@@ -4,14 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Holidays · PocketVault</title>
-  <meta name="theme-color" content="#EEF0F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0F1215" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ECEEF1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1013" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=DM+Sans:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="app.css">
   <script type="module" src="./auth-guard.js"></script>
   <script type="module" src="./holidays.js"></script>
@@ -19,16 +19,13 @@
 <body>
   <main class="page">
     <header class="subbar">
-      <a id="back-btn" class="icon-btn" href="./" aria-label="Back to home">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-      </a>
+      <a id="back-btn" class="square-btn" href="./" aria-label="Back to the vault"><span data-icon="back"></span></a>
       <h1>Holidays</h1>
+      <button id="eye-btn" class="square-btn eye-btn" type="button" aria-label="Hide amounts" aria-pressed="false"></button>
     </header>
 
-    <section class="empty-state">
-      <div class="tile-chip chip-hols">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M9 11v5M15 11v5"/></svg>
-      </div>
+    <section class="plate empty-state">
+      <span class="box-glyph" data-icon="holidays"></span>
       <h2>Coming soon</h2>
       <p>Your holiday cost trackers will live here.</p>
     </section>

@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>PocketVault</title>
   <meta name="description" content="Bills, investments and holidays, kept safe and to hand.">
-  <meta name="theme-color" content="#EEF0F2" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0F1215" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ECEEF1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0E1013" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=DM+Sans:wght@400;500;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="app.css">
   <script type="module" src="./auth-guard.js"></script>
   <script type="module" src="./home.js"></script>
@@ -25,69 +25,55 @@
         <img src="icon.svg" alt="">
         <span class="wordmark">Pocket<span>Vault</span></span>
       </div>
-      <div class="account">
-        <button id="account-btn" class="icon-btn avatar-btn" type="button" aria-label="Account and sign out" aria-haspopup="true" aria-expanded="false">R</button>
-        <div id="account-menu" class="account-menu" hidden>
-          <div id="account-email" class="account-email"></div>
-          <button id="signout-btn" class="menu-item" type="button">Sign out</button>
-        </div>
-      </div>
+      <button id="eye-btn" class="square-btn eye-btn" type="button" aria-label="Hide amounts" aria-pressed="false"></button>
     </header>
 
-    <section class="greeting">
-      <h1 id="greeting-text">Hello</h1>
-      <p id="today-text"></p>
+    <section class="dateline" aria-label="Today">
+      <span class="day" id="day-text"></span>
+      <span class="date" id="date-text"></span>
     </section>
 
-    <section>
-      <h2 class="section-label">Your apps</h2>
-      <nav class="tiles" aria-label="Apps">
-        <a class="tile" href="bills.html" data-tile="bills">
-          <div class="tile-chip chip-bills">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 11l2 2 4-4"/></svg>
-          </div>
-          <div class="tile-body">
-            <span class="tile-title">Bills</span>
-            <span class="tile-line">Tick off each month</span>
-          </div>
-        </a>
+    <a class="next-due" id="next-due" href="bills.html" data-go="bills" hidden>
+      <div>
+        <div class="label">Next due</div>
+        <div class="what" id="next-due-what"></div>
+      </div>
+      <span class="amount amt" id="next-due-amount"></span>
+    </a>
 
-        <a class="tile" href="investments.html" data-tile="investments">
-          <div class="tile-chip chip-invest">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
-          </div>
-          <div class="tile-body">
-            <span class="tile-title">Investments</span>
-            <span class="tile-line">Value and goals</span>
-          </div>
-        </a>
-
-        <a class="tile" href="holidays.html" data-tile="holidays">
-          <div class="tile-chip chip-hols">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M9 11v5M15 11v5"/></svg>
-          </div>
-          <div class="tile-body">
-            <span class="tile-title">Holidays</span>
-            <span class="tile-line">Trip budgets</span>
-          </div>
-        </a>
-
-        <div class="tile tile-more" aria-disabled="true">
-          <div class="tile-chip chip-more">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-          </div>
-          <div class="tile-body">
-            <span class="tile-title">More soon</span>
-            <span class="tile-line">Income &amp; more</span>
-          </div>
+    <nav class="boxes" id="boxes" aria-label="Apps">
+      <a class="box" href="bills.html" data-go="bills" data-box="bills">
+        <span class="box-glyph" data-icon="bills"></span>
+        <div class="box-body">
+          <span class="box-title">Bills</span>
+          <span class="box-line">Tick off each month</span>
         </div>
-      </nav>
-    </section>
+      </a>
 
-    <footer class="footer-note">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-      <span>Signed in securely</span>
-    </footer>
+      <a class="box" href="investments.html" data-go="investments" data-box="investments">
+        <span class="box-glyph" data-icon="investments"></span>
+        <div class="box-body">
+          <span class="box-title">Investments</span>
+          <span class="box-line">Value and goals</span>
+        </div>
+      </a>
+
+      <a class="box" href="holidays.html" data-go="holidays" data-box="holidays">
+        <span class="box-glyph" data-icon="holidays"></span>
+        <div class="box-body">
+          <span class="box-title">Holidays</span>
+          <span class="box-line">Trip budgets</span>
+        </div>
+      </a>
+
+      <div class="box vacant" aria-disabled="true">
+        <span class="box-glyph" data-icon="vacant"></span>
+        <div class="box-body">
+          <span class="box-title">Vacant</span>
+          <span class="box-line">Reserved for later</span>
+        </div>
+      </div>
+    </nav>
   </main>
 </body>
 </html>

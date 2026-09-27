@@ -1,10 +1,9 @@
 // bills.js — Bills mini app (not built yet)
 
-import { ready, wireBackButton, registerSW } from "./app.js";
+import { initPage, open } from "./app.js";
 
-wireBackButton();
-registerSW();
+initPage("bills");
 
-ready.then(() => {
-  // Bills app code goes here.
+open.then(() => {
+  // Bills app code goes here (runs once signed in and past the fingerprint lock).
 });
