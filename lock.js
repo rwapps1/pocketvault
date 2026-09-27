@@ -20,7 +20,8 @@ const K_CRED = "pv-lock-cred";
 const K_AFTER = "pv-lock-after";
 const S_UNLOCKED = "pv-unlocked";
 const S_LAST = "pv-last-active";
-const GRACE_MS = 3000; // covers page-to-page navigation
+const GRACE_MS = 3000;   // page-to-page moves inside PocketVault never lock
+const RETURN_MS = 500;   // "Immediately": any real trip out of the app
 
 const store = {
   get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
@@ -57,7 +58,10 @@ export async function lockSupported() {
 }
 
 // Register a fingerprint credential for this app on this phone.
+let enrolling = false;
 export async function enableLock(email) {
+  enrolling = true;
+  try {
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge: randomBytes(32),
@@ -76,6 +80,10 @@ export async function enableLock(email) {
   store.set(K_CRED, b64u(cred.rawId));
   store.set(K_ENABLED, "1");
   markUnlocked();
+  } finally {
+    enrolling = false;
+    promptEndedAt = Date.now();
+  }
 }
 
 export function disableLock() {
@@ -102,8 +110,14 @@ function markUnlocked() {
   store.sset(S_LAST, String(Date.now()));
 }
 
+// On page load (moving between pages) allow a short grace period.
 function tooLongAway(since) {
   return Date.now() - since > Math.max(lockAfterMs(), GRACE_MS);
+}
+// Coming back to the same page after leaving the app: no grace period,
+// so "Immediately" really means immediately.
+function tooLongAwayReturn(since) {
+  return Date.now() - since > Math.max(lockAfterMs(), RETURN_MS);
 }
 
 function needsLockOnLoad() {
@@ -151,10 +165,23 @@ function unmountLock() {
   document.documentElement.style.overflow = "";
 }
 
+// The fingerprint prompt only works once the page has focus again,
+// so when returning to the app wait for that first.
+function whenFocused() {
+  if (document.hasFocus()) return Promise.resolve();
+  return new Promise((res) => {
+    const done = () => { window.removeEventListener("focus", done); res(); };
+    window.addEventListener("focus", done);
+    setTimeout(done, 1500);
+  });
+}
+
 let busy = false;
+let promptEndedAt = 0;
 async function tryUnlock() {
   if (busy || !overlay) return;
   busy = true;
+  await whenFocused();
   const err = overlay.querySelector("#pv-lock-err");
   err.textContent = "";
   try {
@@ -170,6 +197,7 @@ async function tryUnlock() {
     }
   } finally {
     busy = false;
+    promptEndedAt = Date.now();
   }
 }
 
@@ -189,16 +217,34 @@ if (needsLockOnLoad()) {
 }
 
 // Track time away, and re-lock when coming back after too long.
+// The fingerprint prompt itself can briefly hide the page on some phones,
+// so changes during (or just after) a prompt are ignored.
 let hiddenAt = 0;
+const duringPrompt = () => busy || Date.now() - promptEndedAt < 1500 || enrolling;
 document.addEventListener("visibilitychange", () => {
+  if (duringPrompt()) return;
   if (document.visibilityState === "hidden") {
     hiddenAt = Date.now();
     if (!overlay) store.sset(S_LAST, String(hiddenAt));
-  } else if (lockEnabled() && !overlay && hiddenAt && tooLongAway(hiddenAt)) {
+  } else if (lockEnabled() && !overlay && hiddenAt && tooLongAwayReturn(hiddenAt)) {
+    hiddenAt = 0;
     mountLock();
     tryUnlock();
   }
 });
+// Coming back to a page restored from the back/forward cache (e.g. going
+// back to the vault from a mini app). This is a move INSIDE PocketVault,
+// so judge it like a page load: by when you last used any PocketVault
+// page, not by how long this particular page was out of sight.
+window.addEventListener("pageshow", (e) => {
+  if (!e.persisted) return;
+  hiddenAt = 0;
+  if (needsLockOnLoad() && !overlay) { mountLock(); tryUnlock(); }
+  else if (lockEnabled() && !overlay) markUnlocked();
+});
 window.addEventListener("pagehide", () => {
+  // Leaving this page for another page: not "leaving the app", so forget
+  // the hidden time (otherwise time spent on the next page would count).
+  hiddenAt = 0;
   if (!overlay) store.sset(S_LAST, String(Date.now()));
 });

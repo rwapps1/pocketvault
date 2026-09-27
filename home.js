@@ -28,10 +28,7 @@ if (!introDone) {
   document.body.appendChild(splash);
 }
 
-// ---------- Date heading: day large, date small ----------
-const now = new Date();
-document.getElementById("day-text").textContent = now.toLocaleDateString("en-GB", { weekday: "long" });
-document.getElementById("date-text").textContent = now.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+// Date heading, icons and menu bar are drawn by shell.js.
 
 initPage("home");
 

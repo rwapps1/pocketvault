@@ -4,7 +4,7 @@
 // requests go straight to the network; Firestore handles its own offline cache.
 // Bump CACHE when you want to force old cached files to be cleared.
 
-const CACHE = "pocketvault-v4";
+const CACHE = "pocketvault-v5";
 const CORE = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ const CORE = [
   "./app.css",
   "./app.js",
   "./lock.js",
+  "./shell.js",
   "./home.js",
   "./bills.js",
   "./investments.js",

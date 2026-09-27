@@ -46,8 +46,14 @@ export function signOutUser() {
   return signOut(auth);
 }
 
-// Hide the real page immediately so nothing flashes before we know.
-document.documentElement.style.visibility = "hidden";
+// Hide the real page until we know you're signed in — but only on a fresh
+// open. Once signed in during this session, moving between pages shows the
+// page straight away (pages hold no data until sign-in is confirmed, and
+// the sign-in box still appears if you've been signed out elsewhere).
+const AUTHED_KEY = "pv-authed";
+let knownSignedIn = false;
+try { knownSignedIn = sessionStorage.getItem(AUTHED_KEY) === "1"; } catch {}
+if (!knownSignedIn) document.documentElement.style.visibility = "hidden";
 
 const overlay = document.createElement("div");
 overlay.id = "auth-guard-overlay";
@@ -174,9 +180,11 @@ function hideOverlay() {
 onAuthStateChanged(auth, (user) => {
   if (user) {
     if (document.body.contains(overlay)) freshSignIn = true;
+    try { sessionStorage.setItem(AUTHED_KEY, "1"); } catch {}
     hideOverlay();
     resolveReady(user);
   } else {
+    try { sessionStorage.removeItem(AUTHED_KEY); } catch {}
     showOverlay();
   }
 });

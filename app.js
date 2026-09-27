@@ -17,10 +17,8 @@ import {
 
 export const OWNER_NAME = "Rob";
 
-// ---------- Hide amounts (eye button) — applied before anything shows ----------
+// ---------- Hide amounts (eye button); first applied in shell.js ----------
 const HIDE_KEY = "pv-hide-amounts";
-function readHide() { try { return localStorage.getItem(HIDE_KEY) === "1"; } catch { return false; } }
-document.documentElement.classList.toggle("pv-hide", readHide());
 
 // ---------- Firestore ----------
 // Keeps an offline copy so ticks made without signal sync later.
@@ -118,26 +116,9 @@ export function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// ---------- Icons: ONE set, used by the boxes, the menu bar and page headers ----------
-const svg = (body, sw = 1.4) =>
-  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-
-const ICON_PATHS = {
-  vault: `<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5v2"/><path d="M3 8h1.5M3 16h1.5"/>`,
-  bills: `<rect x="3" y="6" width="18" height="13" rx="1.5"/><path d="M3.5 7l8.5 6 8.5-6"/><path d="M15 16h3"/>`,
-  investments: `<ellipse cx="9" cy="17" rx="6" ry="2.2"/><path d="M3 17v2.5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2V17"/><ellipse cx="9" cy="12" rx="6" ry="2.2"/><path d="M3 12v2.5c0 .9 1.6 1.7 3.8 2"/><path d="M15 14.5V12"/><path d="M16 8l3-3 2 2"/><path d="M13 4h6v6"/>`,
-  holidays: `<path d="M7 15a5 5 0 0 1 10 0"/><path d="M12 5v2M5 8l1.4 1.4M19 8l-1.4 1.4M3 15h2M19 15h2"/><path d="M2 18.5c1.7 0 1.7-1 3.3-1s1.7 1 3.4 1 1.7-1 3.3-1 1.7 1 3.3 1 1.7-1 3.4-1 1.6 1 3.3 1"/><path d="M5 21.5c1.3 0 1.3-.8 2.6-.8s1.3.8 2.6.8 1.3-.8 2.6-.8 1.3.8 2.6.8 1.3-.8 2.6-.8"/>`,
-  vacant: `<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>`,
-  eye: `<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>`,
-  eyeOff: `<path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>`,
-  back: `<path d="M15 18l-6-6 6-6"/>`
-};
+// ---------- Icons: ONE set, defined in shell.js ----------
 export function icon(name, strokeWidth) {
-  const sw = strokeWidth ?? (["eye", "eyeOff", "back"].includes(name) ? 1.8 : 1.4);
-  return svg(ICON_PATHS[name] || "", sw);
-}
-function fillIcons(root = document) {
-  root.querySelectorAll("[data-icon]").forEach((el) => { el.innerHTML = icon(el.dataset.icon); });
+  return window.PV ? window.PV.icon(name, strokeWidth) : "";
 }
 
 // ---------- Navigation ----------
@@ -162,23 +143,10 @@ function goTo(current, target) {
   else location.replace(PAGES[target]);
 }
 
-const TABS = [
-  { key: "home", label: "Vault", icon: "vault" },
-  { key: "bills", label: "Bills", icon: "bills" },
-  { key: "investments", label: "Invest", icon: "investments" },
-  { key: "holidays", label: "Holidays", icon: "holidays" }
-];
 
-function renderTabbar(current) {
-  const nav = document.createElement("nav");
-  nav.className = "tabbar";
-  nav.setAttribute("aria-label", "Main");
-  nav.innerHTML = TABS.map((t) =>
-    `<a class="tab" href="${PAGES[t.key]}" data-go="${t.key}"${t.key === current ? ' aria-current="page"' : ""}>${icon(t.icon, 1.7)}<span>${t.label}</span></a>`
-  ).join("") +
-    `<button class="tab" type="button" id="account-tab" aria-haspopup="dialog"><span class="initial" id="account-initial">R</span><span>Account</span></button>`;
-  document.body.appendChild(nav);
-
+function wireTabbar(current) {
+  const nav = document.querySelector(".tabbar");
+  if (!nav) return;
   nav.querySelectorAll("[data-go]").forEach((a) => a.addEventListener("click", (e) => {
     e.preventDefault();
     goTo(current, a.dataset.go);
@@ -302,8 +270,7 @@ function registerSW() {
 
 // ---------- Page set-up ----------
 export function initPage(current) {
-  fillIcons();
-  renderTabbar(current);
+  wireTabbar(current);
   wireEye();
 
   const back = document.getElementById("back-btn");

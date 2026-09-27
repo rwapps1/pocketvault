@@ -415,10 +415,12 @@ dialog::backdrop { background: var(--scrim); }
 @keyframes box-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 
 /* ---------- Page-to-page transition ---------- */
-::view-transition-old(root) { animation: 0.18s ease both vt-out; }
-::view-transition-new(root) { animation: 0.26s ease both vt-in; }
-@keyframes vt-out { to { opacity: 0; transform: scale(0.98); } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(18px); } }
+/* The menu bar stays put; the page content cross-fades with a slight rise. */
+::view-transition-old(root) { animation: 0.16s ease-out both vt-out; }
+::view-transition-new(root) { animation: 0.24s ease-out both vt-in; }
+@keyframes vt-out { to { opacity: 0; } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(10px); } }
+::view-transition-group(tabbar) { animation-duration: 0s; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
