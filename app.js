@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const OWNER_NAME = "Rob";
-export const VERSION = "9"; // shown in Account — bump with each upload
+export const VERSION = "10"; // shown in Account — bump with each upload
 
 // ---------- Firestore ----------
 // Keeps an offline copy so ticks made without signal sync later.
@@ -97,16 +97,16 @@ export function confirmDialog(message, okText, cancelText, title) {
       ${title ? "<h2></h2>" : ""}
       <p></p>
       <div class="pv-dialog-actions">
-        <button type="button" class="btn-ghost pv-dialog-cancel"></button>
+        ${cancelText ? `<button type="button" class="btn-ghost pv-dialog-cancel"></button>` : ""}
         <button type="button" class="btn pv-dialog-ok"></button>
       </div>`;
     if (title) dlg.querySelector("h2").textContent = title;
     dlg.querySelector("p").textContent = message;
-    dlg.querySelector(".pv-dialog-cancel").textContent = cancelText;
+    if (cancelText) dlg.querySelector(".pv-dialog-cancel").textContent = cancelText;
     dlg.querySelector(".pv-dialog-ok").textContent = okText;
     const finish = (val) => { dlg.close(); dlg.remove(); resolve(val); };
     dlg.querySelector(".pv-dialog-ok").addEventListener("click", () => finish(true));
-    dlg.querySelector(".pv-dialog-cancel").addEventListener("click", () => finish(false));
+    if (cancelText) dlg.querySelector(".pv-dialog-cancel").addEventListener("click", () => finish(false));
     dlg.addEventListener("cancel", (e) => { e.preventDefault(); finish(false); });
     document.body.appendChild(dlg);
     dlg.showModal();

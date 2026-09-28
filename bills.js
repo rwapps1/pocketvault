@@ -84,7 +84,13 @@ export function mount(root, { open }) {
     // The list
     const list = $("[data-list]");
     if (!sorted.length) {
-      list.innerHTML = `<div class="bills-empty"><p>No bills yet.</p><p>Tap <strong>+</strong> to add your first one.</p></div>`;
+      list.innerHTML = `<div class="bills-empty"><p>No bills yet.</p><p>Tap <strong>+</strong> to add your first one,</p>
+        <label class="import-link">or import a list from a file<input type="file" accept=".json,application/json" hidden></label></div>`;
+      list.querySelector(".import-link input").addEventListener("change", (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = "";
+        if (file) importBills(file);
+      });
       return;
     }
     list.replaceChildren(...sorted.map(rowFor));
@@ -326,6 +332,7 @@ export function mount(root, { open }) {
       <div class="list-items"></div>
       <form class="list-add"><input type="text" autocomplete="off" aria-label="New item"><button type="submit" class="add-btn" aria-label="Add">${icon("plus")}</button></form>
       <p class="list-hint">Items in use can be renamed but not deleted — the bills using them update automatically.</p>
+      <label class="import-link">Import bills from a file<input type="file" accept=".json,application/json" hidden></label>
       <div class="sheet-buttons"><button type="button" class="btn-ghost" data-done>Done</button></div>`;
     root.appendChild(d);
     const itemsEl = d.querySelector(".list-items");
@@ -381,6 +388,11 @@ export function mount(root, { open }) {
       saveList(L.key, [...(meta[L.key] || []), newListItem(name)]);
       addInput.value = "";
     });
+    d.querySelector(".import-link input").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (file) { d.close(); importBills(file); }
+    });
     d.querySelector("[data-done]").addEventListener("click", () => d.close());
     d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
     d.addEventListener("close", () => { d.remove(); redrawSettings = null; if (openSheet === d) openSheet = null; });
@@ -388,6 +400,56 @@ export function mount(root, { open }) {
     draw();
     openSheet = d;
     d.showModal();
+  }
+
+  // ---------- Import a list of bills from a file ----------
+  // The file is a PocketVault bills file (JSON): { bills: [ { company, purpose,
+  // type, pot, dueDay, usualAmount (pence), note } ] }. Purpose / payment type /
+  // pot are matched by name; any that don't exist yet are added to your lists.
+  async function importBills(file) {
+    let rows;
+    try {
+      const data = JSON.parse(await file.text());
+      rows = Array.isArray(data) ? data : data.bills;
+      if (!Array.isArray(rows) || !rows.length) throw new Error("no bills");
+    } catch {
+      await confirmDialog("That file isn't a PocketVault bills file, so nothing was imported.", "OK", null, "Import");
+      return;
+    }
+    const clean = [];
+    for (const r of rows) {
+      const company = String(r.company || "").trim();
+      const dueDay = Number(r.dueDay);
+      const usual = Number(r.usualAmount);
+      if (!company || !(dueDay >= 1 && dueDay <= 31) || !Number.isInteger(usual) || usual < 0) continue;
+      clean.push({ company, dueDay, usual, purpose: r.purpose, type: r.type, pot: r.pot, note: String(r.note || "").trim() });
+    }
+    if (!clean.length) {
+      await confirmDialog("No valid bills were found in that file.", "OK", null, "Import");
+      return;
+    }
+    const lists = { purposes: [...(meta.purposes || [])], types: [...(meta.types || [])], pots: [...(meta.pots || [])] };
+    const added = [];
+    const idFor = (key, name) => {
+      name = String(name || "").trim();
+      if (!name) return (lists[key][0] || {}).id || null;
+      let item = lists[key].find((i) => i.name.toLowerCase() === name.toLowerCase());
+      if (!item) { item = newListItem(name); lists[key].push(item); added.push(name); }
+      return item.id;
+    };
+    const docs = clean.map((b) => ({
+      company: b.company, dueDay: b.dueDay, usualAmount: b.usual, note: b.note, paid: false,
+      purposeId: idFor("purposes", b.purpose), typeId: idFor("types", b.type), potId: idFor("pots", b.pot)
+    }));
+    const msg = `Add ${docs.length} bill${docs.length > 1 ? "s" : ""}` +
+      (bills.length ? ` to your ${bills.length} existing one${bills.length > 1 ? "s" : ""}` : "") + "?" +
+      (added.length ? ` New options will be added to your lists: ${[...new Set(added)].join(", ")}.` : "") +
+      " All start as unpaid this period.";
+    if (!(await confirmDialog(msg, "Import", "Cancel", "Import bills"))) return;
+    const batch = writeBatch(db);
+    batch.update(billsMeta(), lists);
+    docs.forEach((d) => batch.set(fsDoc(billsCol()), { ...d, createdAt: serverTimestamp() }));
+    writeOffline(batch.commit()).catch(showError);
   }
 
   // ---------- New period ----------

@@ -23,7 +23,7 @@ export const newListItem = (name) => ({ id: id(), name });
 export function defaultMeta(periodStartIso) {
   const list = (names) => names.map(newListItem);
   return {
-    purposes: list(["Finance", "Communications & TV", "Insurance", "Health", "Entertainment", "Utility"]),
+    purposes: list(["Finance", "Communications & TV", "Insurance", "Health", "Entertainment", "Utility", "Council Tax", "Savings"]),
     types: list(["Direct Debit", "Standing Order", "Card Payment", "Manual Bank Transfer"]),
     pots: list(["Bills", "Emma's Loan", "Main Account"]),
     periodStart: periodStartIso
