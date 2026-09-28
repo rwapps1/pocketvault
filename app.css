@@ -619,3 +619,17 @@ dialog::backdrop { background: var(--scrim); }
   color: var(--brass); font-size: 15px; font-weight: 600; text-decoration: underline; cursor: pointer;
 }
 .bills-empty .import-link { margin: 0; }
+
+/* ---- v11: toggles read "brass = still to pay, grey = paid" ---- */
+.paid-toggle { background: var(--brass-fill); }
+.paid-toggle span { transform: translateX(18px); }
+.paid-toggle[aria-checked="true"] { background: var(--tally-empty); }
+.paid-toggle[aria-checked="true"] span { transform: none; }
+.tp-row .tp-state { font-size: 14px; color: var(--muted); margin-right: 2px; }
+
+/* ---- v11: smaller due date, more room for the description ---- */
+.bill-main { gap: 9px; }
+.bill-row { gap: 10px; }
+.bill-day { width: 30px; }
+.bill-day b { font-size: 19px; }
+.bill-day small { font-size: 10px; }

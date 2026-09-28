@@ -222,7 +222,7 @@ export function mount(root, { open }) {
             ${isNew ? "" : `<label class="fld tp"><span>This period only</span><span class="money"><i>£</i><input name="period" type="text" inputmode="decimal" autocomplete="off" placeholder="same"></span></label>`}
           </div>
           <label class="fld"><span>Note</span><textarea name="note" rows="1" placeholder="Optional"></textarea></label>
-          ${isNew ? "" : `<div class="tp-row"><span>Paid this period</span><button type="button" class="paid-toggle" role="switch" aria-label="Paid this period" aria-checked="${bill.paid ? "true" : "false"}"><span></span></button></div>
+          ${isNew ? "" : `<div class="tp-row"><span>This period</span><span class="tp-state">${bill.paid ? "Paid" : "To pay"}</span><button type="button" class="paid-toggle" role="switch" aria-label="Paid this period" aria-checked="${bill.paid ? "true" : "false"}"><span></span></button></div>
           <small class="tp-hint"></small>`}
           <p class="form-err" role="alert"></p>
           <div class="sheet-buttons">
@@ -243,7 +243,12 @@ export function mount(root, { open }) {
       const hasOverride = Number.isInteger(bill.periodAmount) && bill.periodAmount !== bill.usualAmount;
       f.elements.period.value = hasOverride ? moneyInput(bill.periodAmount) : "";
       const paidBtn = d.querySelector(".tp-row .paid-toggle");
-      paidBtn.addEventListener("click", () => { paid = !paid; paidBtn.setAttribute("aria-checked", String(paid)); });
+      const state = d.querySelector(".tp-state");
+      paidBtn.addEventListener("click", () => {
+        paid = !paid;
+        paidBtn.setAttribute("aria-checked", String(paid));
+        state.textContent = paid ? "Paid" : "To pay";
+      });
       const hint = d.querySelector(".tp-hint");
       const updateHint = () => {
         const usual = parseMoney(f.elements.usual.value);
