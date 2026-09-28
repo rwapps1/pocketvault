@@ -95,7 +95,7 @@ export function mount(root, { open }) {
     row.className = "bill-row" + (b.paid ? " paid" : "");
     const changed = Number.isInteger(b.periodAmount) && b.periodAmount !== b.usualAmount;
     row.innerHTML = `
-      <button type="button" class="bill-main" aria-label="Edit">
+      <div class="bill-main" role="button" tabindex="0">
         <span class="bill-day"><b></b><small></small></span>
         <span class="bill-text">
           <span class="bill-name"><span class="n"></span></span>
@@ -104,14 +104,18 @@ export function mount(root, { open }) {
         <span class="bill-amount">
           <span class="a amt"></span>
         </span>
-      </button>
+      </div>
       <button type="button" class="paid-toggle" role="switch" aria-checked="${b.paid ? "true" : "false"}"><span></span></button>`;
     row.querySelector(".bill-day b").textContent = b.dueDay;
     row.querySelector(".bill-day small").textContent = ordinal(b.dueDay);
     row.querySelector(".bill-name .n").textContent = b.company;
     if (b.note) {
-      const n = document.createElement("span");
-      n.className = "bill-note"; n.innerHTML = icon("note"); n.title = b.note;
+      const n = document.createElement("button");
+      n.type = "button";
+      n.className = "bill-note";
+      n.innerHTML = icon("note");
+      n.setAttribute("aria-label", `Note for ${b.company}`);
+      n.addEventListener("click", (e) => { e.stopPropagation(); showNote(n, b); });
       row.querySelector(".bill-name").appendChild(n);
     }
     row.querySelector(".bill-meta").textContent = `${nameOf("types", b.typeId)} · ${nameOf("pots", b.potId)}`;
@@ -130,8 +134,34 @@ export function mount(root, { open }) {
       if (now && navigator.vibrate) navigator.vibrate(12);
       updateDoc(billDoc(b.id), { paid: now }).catch(showError);
     });
-    row.querySelector(".bill-main").addEventListener("click", () => editBill(b));
+    const main = row.querySelector(".bill-main");
+    main.setAttribute("aria-label", `Edit ${b.company}`);
+    main.addEventListener("click", () => editBill(b));
+    main.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); editBill(b); } });
     return row;
+  }
+
+  // ---------- Note pop-up (tap the note marker) ----------
+  function showNote(anchor, b) {
+    const d = document.createElement("dialog");
+    d.className = "note-pop";
+    d.innerHTML = `<strong></strong><p></p>`;
+    d.querySelector("strong").textContent = b.company;
+    d.querySelector("p").textContent = b.note;
+    root.appendChild(d);
+    d.addEventListener("close", () => { d.remove(); if (openSheet === d) openSheet = null; });
+    d.addEventListener("click", () => d.close()); // tap anywhere to close
+    openSheet = d;
+    d.showModal(); // the phone's back button closes it
+    // Sit just below the marker (or above it if near the bottom)
+    const r = anchor.getBoundingClientRect();
+    const w = Math.min(300, window.innerWidth - 32);
+    const left = Math.max(16, Math.min(r.left - 20, window.innerWidth - w - 16));
+    d.style.width = w + "px";
+    d.style.left = left + "px";
+    const h = d.offsetHeight;
+    const below = r.bottom + 8;
+    d.style.top = (below + h > window.innerHeight - 80 ? Math.max(16, r.top - h - 8) : below) + "px";
   }
 
   function showError(e) {
@@ -181,14 +211,13 @@ export function mount(root, { open }) {
             <label class="fld"><span>Payment type</span><span class="sel"><select name="typeId">${options("types", bill.typeId)}</select>${icon("chevron")}</span></label>
             <label class="fld"><span>Pot</span><span class="sel"><select name="potId">${options("pots", bill.potId)}</select>${icon("chevron")}</span></label>
           </div>
-          <label class="fld"><span>Usual amount</span><span class="money"><i>£</i><input name="usual" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
-          <label class="fld"><span>Note</span><textarea name="note" rows="2"></textarea></label>
-          <div class="this-period">
-            <span class="tp-label">This period only</span>
-            <label class="tp-row"><span>Amount this period</span><span class="money small"><i>£</i><input name="period" type="text" inputmode="decimal" autocomplete="off" placeholder="same"></span></label>
-            <div class="tp-row"><span>Paid</span><button type="button" class="paid-toggle" role="switch" aria-label="Paid" aria-checked="${bill.paid ? "true" : "false"}"><span></span></button></div>
-            <small class="tp-hint"></small>
+          <div class="two">
+            <label class="fld"><span>Usual amount</span><span class="money"><i>£</i><input name="usual" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+            ${isNew ? "" : `<label class="fld tp"><span>This period only</span><span class="money"><i>£</i><input name="period" type="text" inputmode="decimal" autocomplete="off" placeholder="same"></span></label>`}
           </div>
+          <label class="fld"><span>Note</span><textarea name="note" rows="1" placeholder="Optional"></textarea></label>
+          ${isNew ? "" : `<div class="tp-row"><span>Paid this period</span><button type="button" class="paid-toggle" role="switch" aria-label="Paid this period" aria-checked="${bill.paid ? "true" : "false"}"><span></span></button></div>
+          <small class="tp-hint"></small>`}
           <p class="form-err" role="alert"></p>
           <div class="sheet-buttons">
             ${isNew ? "" : `<button type="button" class="btn-ghost danger" data-del>Delete</button>`}
@@ -203,20 +232,23 @@ export function mount(root, { open }) {
     f.elements.company.value = bill.company;
     f.elements.usual.value = moneyInput(bill.usualAmount);
     f.elements.note.value = bill.note || "";
-    const hasOverride = Number.isInteger(bill.periodAmount) && bill.periodAmount !== bill.usualAmount;
-    f.elements.period.value = hasOverride ? moneyInput(bill.periodAmount) : "";
     let paid = !!bill.paid;
-    const paidBtn = d.querySelector(".this-period .paid-toggle");
-    paidBtn.addEventListener("click", () => { paid = !paid; paidBtn.setAttribute("aria-checked", String(paid)); });
-
-    const hint = d.querySelector(".tp-hint");
-    const updateHint = () => {
-      const usual = parseMoney(f.elements.usual.value);
-      hint.textContent = usual == null
-        ? "Leave blank to use the usual amount."
-        : `Leave blank to use ${money(usual)}. A different amount goes back to ${money(usual)} when you start a new period.`;
-    };
-    f.elements.usual.addEventListener("input", updateHint); updateHint();
+    if (!isNew) {
+      const hasOverride = Number.isInteger(bill.periodAmount) && bill.periodAmount !== bill.usualAmount;
+      f.elements.period.value = hasOverride ? moneyInput(bill.periodAmount) : "";
+      const paidBtn = d.querySelector(".tp-row .paid-toggle");
+      paidBtn.addEventListener("click", () => { paid = !paid; paidBtn.setAttribute("aria-checked", String(paid)); });
+      const hint = d.querySelector(".tp-hint");
+      const updateHint = () => {
+        const usual = parseMoney(f.elements.usual.value);
+        hint.textContent = `"This period only" changes just this period's amount — leave it blank for the usual${usual == null ? "" : " " + money(usual)}. It goes back on reset.`;
+      };
+      f.elements.usual.addEventListener("input", updateHint); updateHint();
+    }
+    // Note box grows as you type
+    const note = f.elements.note;
+    const grow = () => { note.style.height = "auto"; note.style.height = Math.min(note.scrollHeight + 2, 120) + "px"; };
+    note.addEventListener("input", grow);
 
     const close = () => { d.close(); };
     d.addEventListener("close", () => { d.remove(); if (openSheet === d) openSheet = null; });
@@ -229,7 +261,7 @@ export function mount(root, { open }) {
       err.textContent = "";
       const company = f.elements.company.value.trim();
       const usual = parseMoney(f.elements.usual.value);
-      const periodText = f.elements.period.value.trim();
+      const periodText = isNew ? "" : f.elements.period.value.trim();
       const period = periodText ? parseMoney(periodText) : null;
       if (!company) { err.textContent = "Enter the company name."; f.elements.company.focus(); return; }
       if (usual == null) { err.textContent = "Enter the usual amount, e.g. 150.00"; f.elements.usual.focus(); return; }
@@ -269,7 +301,7 @@ export function mount(root, { open }) {
 
     openSheet = d;
     d.showModal();
-    if (isNew) f.elements.company.focus();
+    requestAnimationFrame(() => { grow(); d.querySelector("input, select, textarea").blur(); });
   }
 
   // Firestore only confirms a write once it reaches the server; offline we

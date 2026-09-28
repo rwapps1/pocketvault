@@ -577,3 +577,40 @@ dialog::backdrop { background: var(--scrim); }
 .add-btn svg { width: 22px; height: 22px; stroke-width: 2.2; }
 .list-hint { margin: 10px 0 14px; font-size: 12.5px; color: var(--muted); }
 .tally.dense { gap: 1px; }
+
+/* ---- Compact bill pop-up (fits one phone screen) ---- */
+.bill-sheet { padding-top: 8px; }
+.bill-sheet .sheet-grip { margin-bottom: 8px; }
+.bill-sheet h2 { margin: 0 0 8px; font-size: 24px; }
+.bill-sheet .form { gap: 9px; }
+.bill-sheet .fld { gap: 4px; }
+.bill-sheet .fld > span:first-child { font-size: 12.5px; }
+.bill-sheet textarea { min-height: 44px; padding-top: 11px; padding-bottom: 11px; overflow-y: auto; }
+.bill-sheet .fld.tp > span:first-child { color: var(--brass); }
+.bill-sheet .tp-row { padding: 2px 0; }
+.bill-sheet .tp-hint { margin-top: -4px; }
+
+/* ---- Row: main area + separate note marker ---- */
+.bill-main:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; border-radius: 4px; }
+.bill-note {
+  flex: none; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; margin: -8px -6px -8px -4px;
+  border: none; background: none; color: var(--brass); padding: 0; cursor: pointer;
+}
+.bill-note svg { width: 16px; height: 16px; }
+.bill-row.paid .bill-note { color: var(--muted); }
+
+/* ---- Note pop-up ---- */
+.note-pop {
+  position: fixed; margin: 0; inset: auto;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px; border-radius: 8px;
+  border: 1px solid var(--border); border-left: 3px solid var(--brass-fill);
+  background: var(--box); color: var(--text);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+  animation: note-in 0.14s ease-out;
+}
+.note-pop::backdrop { background: rgba(0,0,0,0.25); }
+.note-pop strong { display: block; font-family: var(--font-cond); font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brass); margin-bottom: 4px; }
+.note-pop p { margin: 0; font-size: 15px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
+@keyframes note-in { from { opacity: 0; transform: translateY(-4px); } }

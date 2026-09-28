@@ -43,7 +43,10 @@ const summaries = {
     const bills = await loadBills();
     if (!bills.length) return null;
     const paid = bills.filter((b) => b.paid).length;
-    return { line: paid === bills.length ? "All paid" : `${paid} of ${bills.length} paid`, tally: [paid, bills.length] };
+    const left = bills.filter((b) => !b.paid).reduce((sum, b) => sum + amountThisPeriod(b), 0);
+    return left === 0
+      ? { figure: money(0), line: "All paid", tone: "pos", tally: [paid, bills.length] }
+      : { figure: money(left), line: "left to pay", tally: [paid, bills.length] };
   },
   // investments: async () => ({ figure: "£12,345", line: "▲ 4.2% overall", tone: "pos" }),
   // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),
