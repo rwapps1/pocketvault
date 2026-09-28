@@ -696,3 +696,14 @@ dialog::backdrop { background: var(--scrim); }
 .m-name b { font-size: 17px; }
 .m-amt { font-size: 18px; }
 .earn-foot, .earn-foot:empty { margin-bottom: 0; }
+
+/* ---- v15: slimmer year selector and boxes, so March fits with larger phone text ---- */
+.view[data-view="earnings"] { gap: 8px; }
+.view[data-view="earnings"] .ty-bar { padding-bottom: 4px; }
+.view[data-view="earnings"] .ty-bar .square-btn { width: 36px; height: 36px; }
+.view[data-view="earnings"] .ty-title { flex-direction: row; justify-content: center; align-items: baseline; gap: 8px; }
+.view[data-view="earnings"] .ty-name { font-size: 19px; white-space: nowrap; }
+.view[data-view="earnings"] .ty-sub { font-size: 13px; white-space: nowrap; }
+.view[data-view="earnings"] .pot.stat { padding: 7px 9px 8px; gap: 3px; }
+.view[data-view="earnings"] .pot.stat .pot-name { font-size: 11.5px; letter-spacing: 0.06em; }
+.view[data-view="earnings"] .pot.stat .pot-left { font-size: 20px; white-space: nowrap; }

@@ -44,27 +44,25 @@ export function mount(root, { open }) {
   // ---------- Drawing ----------
   function render() {
     if (!loaded) return;
-    const first = monthsOfTaxYear(ty)[0], last = monthsOfTaxYear(ty)[11];
     $("[data-ty-name]").textContent = `Tax year ${ty}/${String(ty + 1).slice(2)}`;
-    $("[data-ty-sub]").textContent = `April ${first.year} – March ${last.year} · Gross`;
     $("[data-ty-prev]").disabled = ty <= earliestTY();
     $("[data-ty-next]").disabled = ty >= thisTY;
 
     // Stats
     const s = summarise(entries, ty);
-    const stat = (label, value, sub, brass) => {
+    // Compact boxes: a label (with any detail folded in) and the figure
+    const stat = (label, value, detail, brass) => {
       const el = document.createElement("div");
-      el.className = "pot" + (brass ? " brass" : "");
-      el.innerHTML = `<span class="pot-name"></span><span class="pot-left amt"></span><span class="pot-sub"></span>`;
-      el.querySelector(".pot-name").textContent = label;
+      el.className = "pot stat" + (brass ? " brass" : "");
+      el.innerHTML = `<span class="pot-name"></span><span class="pot-left amt"></span>`;
+      el.querySelector(".pot-name").textContent = detail ? `${label} · ${detail}` : label;
       el.querySelector(".pot-left").textContent = value;
-      el.querySelector(".pot-sub").textContent = sub;
       return el;
     };
     let third;
     if (ty >= thisTY) {
       // This tax year: where it's heading
-      third = stat("Projected", s.count ? pounds(s.projected) : "—", "full year", true);
+      third = stat("Projected", s.count ? pounds(s.projected) : "—", "", true);
     } else {
       // A finished year: how it compared with the year before (or its best month)
       const prev = summarise(entries, ty - 1);
@@ -77,17 +75,17 @@ export function mount(root, { open }) {
         const pct = base ? (diff / base) * 100 : 0;
         const sign = diff >= 0 ? "+" : "−";
         third = stat(`vs ${taxYearLabel(ty - 1)}`, `${sign}${pounds(Math.abs(diff))}${full ? "" : "/mo"}`,
-          `${sign}${Math.abs(pct).toFixed(1)}% ${full ? "on the year" : "monthly avg"}`, true);
+          `${sign}${Math.abs(pct).toFixed(1)}%`, true);
         third.classList.add(diff >= 0 ? "up" : "down");
       } else {
         const inYear = entries.filter((e) => taxYearOf(e.year, e.month) === ty);
         const best = inYear.reduce((a, e) => (!a || e.amount > a.amount ? e : a), null);
-        third = stat("Best month", best ? pounds(best.amount) : "—", best ? MONTH_NAMES[best.month - 1] : "", true);
+        third = stat("Best", best ? pounds(best.amount) : "—", best ? MONTH_SHORT[best.month - 1] : "", true);
       }
     }
     $("[data-stats]").replaceChildren(
-      stat(ty >= thisTY ? "So far" : "Year total", pounds(s.total), `${s.count} of 12 months`),
-      stat("Monthly avg", pounds(s.average), s.count ? "per month entered" : "no months yet"),
+      stat(ty >= thisTY ? "So far" : "Total", pounds(s.total), `${s.count}/12`),
+      stat("Avg / month", pounds(s.average), ""),
       third
     );
 
