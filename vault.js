@@ -1,11 +1,19 @@
 // vault.js — the home screen: date, deposit boxes, live summaries
 
+import { getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { billsCol, amountThisPeriod, money, nextDue as findNextDue, ordinal } from "./bills-data.js";
+
+// Bills are read once per visit to the vault (from the phone's copy when offline).
+let billsOnce = null;
+const loadBills = () => (billsOnce ||= getDocs(billsCol()).then((s) => s.docs.map((d) => d.data())));
+
 export function mount(root, { open }) {
   const now = new Date();
   root.querySelector("[data-day]").textContent = now.toLocaleDateString("en-GB", { weekday: "long" });
   root.querySelector("[data-date]").textContent = now.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
   let alive = true;
+  billsOnce = null; // fresh figures each time the vault is shown
   open.then(async () => {
     for (const [key, load] of Object.entries(summaries)) {
       if (!alive) return;
@@ -31,13 +39,22 @@ export function mount(root, { open }) {
 //     amount1 / amount2: true if that line is money (blurred by the eye) }
 // ---------------------------------------------------------------------
 const summaries = {
-  // bills:       async () => ({ line: "8 of 12 paid", tally: [8, 12] }),
+  bills: async () => {
+    const bills = await loadBills();
+    if (!bills.length) return null;
+    const paid = bills.filter((b) => b.paid).length;
+    return { line: paid === bills.length ? "All paid" : `${paid} of ${bills.length} paid`, tally: [paid, bills.length] };
+  },
   // investments: async () => ({ figure: "£12,345", line: "▲ 4.2% overall", tone: "pos" }),
   // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),
 };
 
-// Next bill due — filled by the Bills app later; hidden until then.
-async function loadNextDue() { return null; } // { what: "Council tax · Thu 1 Oct", amount: "£182.00" }
+// Next unpaid bill from today onwards (hidden when everything's paid).
+async function loadNextDue() {
+  const next = findNextDue(await loadBills());
+  if (!next) return null;
+  return { what: `${next.company} · ${next.dueDay}${ordinal(next.dueDay)}`, amount: money(amountThisPeriod(next)) };
+}
 
 function renderBox(root, key, s) {
   const box = root.querySelector(`[data-box="${key}"]`);
@@ -58,6 +75,7 @@ function renderBox(root, key, s) {
     const [done, total] = s.tally;
     const t = document.createElement("div");
     t.className = "tally";
+    t.classList.toggle("dense", total > 16);
     for (let i = 0; i < total; i++) {
       const notch = document.createElement("i");
       if (i < done) notch.className = "on";

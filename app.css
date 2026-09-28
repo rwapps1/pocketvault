@@ -432,3 +432,148 @@ dialog::backdrop { background: var(--scrim); }
   #pv-splash { display: none; }
   .boxes.intro .box { opacity: 1; }
 }
+
+/* =====================================================================
+   Pop-up forms (shared by mini apps)
+   ===================================================================== */
+.sheet { overflow-y: auto; overscroll-behavior: contain; }
+.pv-dialog h2 {
+  margin: 0 0 8px; font-family: var(--font-cond); font-weight: 700; font-size: 24px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.form { display: flex; flex-direction: column; gap: 11px; }
+.fld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fld > span:first-child { font-size: 13px; font-weight: 600; color: var(--muted); }
+.two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.form input, .form select, .form textarea, .list-add input, .li-edit {
+  width: 100%; min-height: 44px; box-sizing: border-box;
+  padding: 0 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text);
+  font-family: var(--font); font-size: 16px;
+}
+.form textarea { padding: 10px 12px; resize: none; line-height: 1.35; }
+.form input:focus, .form select:focus, .form textarea:focus, .list-add input:focus, .li-edit:focus {
+  outline: 2px solid var(--brass); outline-offset: 0; border-color: transparent;
+}
+.sel { position: relative; display: block; }
+.sel select { appearance: none; -webkit-appearance: none; padding-right: 34px; }
+.sel svg { position: absolute; right: 12px; top: 14px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.money { position: relative; display: block; }
+.money i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--muted); }
+.money input { padding-left: 26px; }
+.money.small { width: 120px; flex: none; }
+.form-err { margin: 0; min-height: 1em; color: var(--negative); font-size: 14px; }
+.form-err:empty { display: none; }
+.sheet-buttons { display: flex; gap: 10px; margin-top: 4px; }
+.sheet-buttons > * { flex: 1; }
+.btn:disabled { opacity: 0.6; }
+.btn-ghost.danger { color: var(--negative); }
+
+/* =====================================================================
+   Bills
+   ===================================================================== */
+.subbar .square-btn:last-child svg { width: 20px; height: 20px; }
+
+.period-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: -4px;
+}
+.period-line .period { font-family: var(--font-cond); font-weight: 600; font-size: 17px; letter-spacing: 0.06em; }
+.period-line .paid-count { font-size: 14px; color: var(--muted); }
+
+.pots { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+.pot {
+  padding: 10px 10px 9px; background: var(--box); border: 1px solid var(--border); border-radius: 6px;
+  display: flex; flex-direction: column; gap: 3px; min-width: 0;
+}
+.pot-name {
+  font-family: var(--font-cond); font-weight: 600; font-size: 12px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pot-left { font-family: var(--font-cond); font-weight: 700; font-size: 22px; line-height: 1; }
+.pot-sub { font-size: 11px; color: var(--faint); }
+.pot.clear .pot-left { color: var(--positive); }
+
+.bill-list { display: flex; flex-direction: column; margin-top: -6px; }
+.bills-loading, .bills-empty { color: var(--muted); text-align: center; padding: 28px 0; margin: 0; }
+.bills-empty p { margin: 0 0 4px; }
+.bill-row { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--inner); }
+.bill-main {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; background: none; border: none; text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.bill-day { width: 40px; flex: none; display: flex; align-items: baseline; }
+.bill-day b { font-family: var(--font-cond); font-weight: 700; font-size: 24px; line-height: 1; }
+.bill-day small { font-family: var(--font-cond); font-weight: 600; font-size: 12px; color: var(--muted); }
+.bill-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bill-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.bill-name .n { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-note { color: var(--muted); display: flex; flex: none; }
+.bill-note svg { width: 14px; height: 14px; }
+.bill-meta { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bill-amount { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex: none; }
+.bill-amount .a { font-family: var(--font-cond); font-weight: 600; font-size: 19px; }
+.bill-amount .usual { font-size: 11px; color: var(--brass); }
+.bill-row.paid .bill-main { opacity: 0.45; }
+.bill-row.paid .bill-amount .a { text-decoration: line-through; }
+
+/* Paid toggle */
+.paid-toggle {
+  position: relative; width: 46px; height: 28px; flex: none;
+  border-radius: 14px; border: none; padding: 0; cursor: pointer;
+  background: var(--tally-empty); transition: background 0.15s;
+}
+.paid-toggle::before { content: ""; position: absolute; inset: -8px -4px; } /* bigger tap area */
+.paid-toggle span {
+  position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 11px;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform 0.15s;
+}
+.paid-toggle[aria-checked="true"] { background: var(--brass-fill); }
+.paid-toggle[aria-checked="true"] span { transform: translateX(18px); }
+.paid-toggle:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+
+.btn-dashed {
+  margin-top: 4px; margin-bottom: 70px; min-height: 44px; border-radius: 6px;
+  border: 1px dashed var(--border); background: transparent; color: var(--muted);
+  font-family: var(--font-cond); font-weight: 600; font-size: 16px; letter-spacing: 0.06em;
+  text-transform: uppercase; cursor: pointer;
+}
+.fab {
+  position: fixed; z-index: 30;
+  right: max(18px, calc((100vw - 560px) / 2 + 18px));
+  bottom: calc(var(--bar-h) + 18px + env(safe-area-inset-bottom));
+  width: 56px; height: 56px; border-radius: 10px; border: none;
+  background: var(--brass-fill); color: #15181C;
+  display: flex; align-items: center; justify-content: center; padding: 0; cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+.fab svg { width: 26px; height: 26px; stroke-width: 2.2; }
+.view.sliding .fab { visibility: hidden; } /* reappears once the slide ends */
+
+/* This-period panel in the bill pop-up */
+.this-period {
+  padding: 12px; border-radius: 6px; border: 1px solid var(--border); border-left: 3px solid var(--brass-fill);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.tp-label { font-family: var(--font-cond); font-weight: 600; font-size: 13px; letter-spacing: 0.12em; color: var(--brass); text-transform: uppercase; }
+.tp-row { display: flex; align-items: center; gap: 10px; }
+.tp-row > span:first-child { flex: 1; font-size: 15px; }
+.tp-hint { font-size: 12px; color: var(--muted); }
+
+/* Lists editor */
+.lists-sheet .segmented { margin-bottom: 8px; }
+.list-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--inner); }
+.li-name { flex: 1; font-size: 16px; min-width: 0; overflow-wrap: anywhere; }
+.li-edit { flex: 1; }
+.li-used { font-size: 12px; color: var(--faint); white-space: nowrap; }
+.square-btn:disabled { opacity: 0.35; cursor: default; }
+.list-add { display: flex; gap: 10px; padding-top: 12px; }
+.add-btn {
+  width: 48px; min-height: 44px; flex: none; border-radius: 6px; border: none;
+  background: var(--brass-fill); color: #15181C; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.add-btn svg { width: 22px; height: 22px; stroke-width: 2.2; }
+.list-hint { margin: 10px 0 14px; font-size: 12.5px; color: var(--muted); }
+.tally.dense { gap: 1px; }

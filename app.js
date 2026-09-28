@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const OWNER_NAME = "Rob";
-export const VERSION = "7"; // shown in Account — bump with each upload
+export const VERSION = "8"; // shown in Account — bump with each upload
 
 // ---------- Firestore ----------
 // Keeps an offline copy so ticks made without signal sync later.
@@ -89,16 +89,18 @@ document.addEventListener("pv-use-password", () => secureSignOut({ skipCheck: tr
 // ---------- Dialogs ----------
 // Uses <dialog>, which the phone's back button closes by itself (it counts
 // as "Cancel") without leaving the screen underneath.
-export function confirmDialog(message, okText, cancelText) {
+export function confirmDialog(message, okText, cancelText, title) {
   return new Promise((resolve) => {
     const dlg = document.createElement("dialog");
     dlg.className = "pv-dialog";
     dlg.innerHTML = `
+      ${title ? "<h2></h2>" : ""}
       <p></p>
       <div class="pv-dialog-actions">
         <button type="button" class="btn-ghost pv-dialog-cancel"></button>
         <button type="button" class="btn pv-dialog-ok"></button>
       </div>`;
+    if (title) dlg.querySelector("h2").textContent = title;
     dlg.querySelector("p").textContent = message;
     dlg.querySelector(".pv-dialog-cancel").textContent = cancelText;
     dlg.querySelector(".pv-dialog-ok").textContent = okText;
