@@ -633,3 +633,12 @@ dialog::backdrop { background: var(--scrim); }
 .bill-day { width: 30px; }
 .bill-day b { font-size: 19px; }
 .bill-day small { font-size: 10px; }
+
+/* ---- v12: payment type under the amount ---- */
+.bill-sub { display: flex; gap: 6px; align-items: baseline; justify-content: flex-end; white-space: nowrap; }
+.bill-sub .ptype {
+  font-family: var(--font-cond); font-weight: 600; font-size: 11.5px; letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.bill-sub .usual { font-size: 11px; color: var(--brass); }
+.bill-row.paid .bill-sub .ptype { text-decoration: none; }

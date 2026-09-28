@@ -124,13 +124,24 @@ export function mount(root, { open }) {
       n.addEventListener("click", (e) => { e.stopPropagation(); showNote(n, b); });
       row.querySelector(".bill-name").appendChild(n);
     }
-    row.querySelector(".bill-meta").textContent = `${nameOf("types", b.typeId)} · ${nameOf("pots", b.potId)}`;
+    row.querySelector(".bill-meta").textContent = `${nameOf("purposes", b.purposeId)} · ${nameOf("pots", b.potId)}`;
     row.querySelector(".bill-amount .a").textContent = money(amountThisPeriod(b));
+    // Small line under the amount: payment type (DD, S/O, Card, MBT),
+    // plus the usual amount when this period's is different.
+    const sub = document.createElement("span");
+    sub.className = "bill-sub";
+    const abbr = document.createElement("span");
+    abbr.className = "ptype";
+    const typeName = nameOf("types", b.typeId);
+    abbr.textContent = typeAbbr(typeName);
+    abbr.title = typeName;
+    sub.appendChild(abbr);
     if (changed) {
       const u = document.createElement("span");
       u.className = "usual amt"; u.textContent = `usual ${money(b.usualAmount)}`;
-      row.querySelector(".bill-amount").appendChild(u);
+      sub.appendChild(u);
     }
+    row.querySelector(".bill-amount").appendChild(sub);
     const toggle = row.querySelector(".paid-toggle");
     toggle.setAttribute("aria-label", `${b.company} paid`);
     toggle.addEventListener("click", () => {
@@ -145,6 +156,16 @@ export function mount(root, { open }) {
     main.addEventListener("click", () => editBill(b));
     main.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); editBill(b); } });
     return row;
+  }
+
+  // Short form of a payment type; anything you add yourself uses its initials.
+  function typeAbbr(name) {
+    const known = { "direct debit": "DD", "standing order": "S/O", "card payment": "Card", "manual bank transfer": "MBT" };
+    const k = String(name || "").trim().toLowerCase();
+    if (known[k]) return known[k];
+    if (!k || k === "—") return "";
+    const words = name.trim().split(/\s+/);
+    return words.length === 1 ? name.trim().slice(0, 4) : words.map((w) => w[0].toUpperCase()).join("").slice(0, 3);
   }
 
   // ---------- Note pop-up (tap the note marker) ----------
