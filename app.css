@@ -678,3 +678,21 @@ dialog::backdrop { background: var(--scrim); }
 .month-row.future .m-amt { color: var(--faint); }
 .earn-foot { margin-bottom: 70px; }
 .earn-foot:empty { margin-bottom: 70px; }
+
+/* ---- v14: Earnings condensed so a whole year fits one screen ---- */
+.view[data-view="earnings"] { gap: 10px; }
+.add-btn-head { background: var(--brass-fill); border-color: var(--brass-fill); color: #15181C; }
+.add-btn-head svg { stroke-width: 2.2; }
+.view[data-view="earnings"] .ty-bar { margin-top: 0; padding-bottom: 6px; gap: 6px; }
+.view[data-view="earnings"] .ty-bar .square-btn { width: 40px; height: 40px; }
+.view[data-view="earnings"] .ty-name { font-size: 20px; }
+.view[data-view="earnings"] .ty-sub { font-size: 12px; }
+.view[data-view="earnings"] .pot { padding: 8px 9px 7px; gap: 2px; }
+.view[data-view="earnings"] .pot-left { font-size: 20px; }
+.pot.up .pot-left { color: var(--positive); }
+.pot.down .pot-left { color: var(--negative); }
+.month-list { margin-top: 0; }
+.month-row { min-height: 38px; padding: 4px 0; gap: 10px; }
+.m-name b { font-size: 17px; }
+.m-amt { font-size: 18px; }
+.earn-foot, .earn-foot:empty { margin-bottom: 0; }

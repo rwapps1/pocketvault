@@ -52,9 +52,13 @@ const summaries = {
   earnings: async () => {
     const snap = await getDocs(earningsCol());
     const ty = currentTaxYear();
-    const s = summarise(snap.docs.map((d) => d.data()), ty);
-    if (!s.count) return null;
-    return { figure: pounds(s.projected), line: `projected ${taxYearLabel(ty)}` };
+    const all = snap.docs.map((d) => d.data());
+    const s = summarise(all, ty);
+    if (s.count) return { figure: pounds(s.projected), line: `projected ${taxYearLabel(ty)}` };
+    // New tax year with nothing entered yet: show last year's total instead
+    const last = summarise(all, ty - 1);
+    if (last.count) return { figure: pounds(last.total), line: `${taxYearLabel(ty - 1)} total` };
+    return null;
   },
   // investments: async () => ({ figure: "£12,345", line: "▲ 4.2% overall", tone: "pos" }),
   // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),

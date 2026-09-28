@@ -61,12 +61,34 @@ export function mount(root, { open }) {
       el.querySelector(".pot-sub").textContent = sub;
       return el;
     };
+    let third;
+    if (ty >= thisTY) {
+      // This tax year: where it's heading
+      third = stat("Projected", s.count ? pounds(s.projected) : "—", "full year", true);
+    } else {
+      // A finished year: how it compared with the year before (or its best month)
+      const prev = summarise(entries, ty - 1);
+      if (prev.count && s.count) {
+        // Both years complete: compare totals. Otherwise compare monthly averages,
+        // so a year with months missing isn't shown as a big drop.
+        const full = s.complete && prev.complete;
+        const diff = full ? s.total - prev.total : s.average - prev.average;
+        const base = full ? prev.total : prev.average;
+        const pct = base ? (diff / base) * 100 : 0;
+        const sign = diff >= 0 ? "+" : "−";
+        third = stat(`vs ${taxYearLabel(ty - 1)}`, `${sign}${pounds(Math.abs(diff))}${full ? "" : "/mo"}`,
+          `${sign}${Math.abs(pct).toFixed(1)}% ${full ? "on the year" : "monthly avg"}`, true);
+        third.classList.add(diff >= 0 ? "up" : "down");
+      } else {
+        const inYear = entries.filter((e) => taxYearOf(e.year, e.month) === ty);
+        const best = inYear.reduce((a, e) => (!a || e.amount > a.amount ? e : a), null);
+        third = stat("Best month", best ? pounds(best.amount) : "—", best ? MONTH_NAMES[best.month - 1] : "", true);
+      }
+    }
     $("[data-stats]").replaceChildren(
-      stat(s.complete ? "Year total" : "So far", pounds(s.total), `${s.count} of 12 months`),
+      stat(ty >= thisTY ? "So far" : "Year total", pounds(s.total), `${s.count} of 12 months`),
       stat("Monthly avg", pounds(s.average), s.count ? "per month entered" : "no months yet"),
-      s.complete
-        ? stat("Full year", pounds(s.total), "complete", true)
-        : stat("Projected", s.count ? pounds(s.projected) : "—", "full year", true)
+      third
     );
 
     // Months, April first

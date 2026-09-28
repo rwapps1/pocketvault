@@ -18,7 +18,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 export const OWNER_NAME = "Rob";
-export const VERSION = "13"; // shown in Account — bump with each upload
+export const VERSION = "14"; // shown in Account — bump with each upload
 
 // ---------- Firestore ----------
 // Keeps an offline copy so ticks made without signal sync later.
