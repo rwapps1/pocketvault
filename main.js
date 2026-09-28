@@ -10,8 +10,8 @@
 import { open, getUser, secureSignOut, VERSION } from "./app.js";
 import { lockSupported, lockEnabled, enableLock, disableLock, lockAfterMs, setLockAfter } from "./lock.js";
 
-const VIEWS = ["vault", "bills", "investments", "holidays"];
-const TITLES = { vault: "PocketVault", bills: "Bills", investments: "Investments", holidays: "Holidays" };
+const VIEWS = ["vault", "bills", "investments", "holidays", "earnings"]; // earnings: vault box only, not in the menu bar
+const TITLES = { vault: "PocketVault", bills: "Bills", investments: "Investments", holidays: "Holidays", earnings: "Earnings" };
 const viewport = document.getElementById("viewport");
 const tabbar = document.querySelector(".tabbar");
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -129,7 +129,10 @@ function updateTabs(name) {
     if (a.dataset.go === name) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
   });
-  tabbar.style.setProperty("--tab", VIEWS.indexOf(name));
+  // Views without a menu-bar tab (Earnings) hide the gold marker
+  const tabIndex = [...tabbar.querySelectorAll("[data-go]")].findIndex((a) => a.dataset.go === name);
+  tabbar.classList.toggle("no-tab", tabIndex < 0);
+  if (tabIndex >= 0) tabbar.style.setProperty("--tab", tabIndex);
 }
 
 // ---------- Navigation & the back button ----------

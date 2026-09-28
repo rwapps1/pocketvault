@@ -1,0 +1,28 @@
+<!-- Earnings mini app layout. Shown inside index.html by main.js.
+     If this file is opened directly, send the visitor to the app instead. -->
+<script>location.replace("./#earnings");</script>
+
+<header class="subbar">
+  <a class="square-btn" href="./" data-back aria-label="Back to the vault"><span data-icon="back"></span></a>
+  <h1>Earnings</h1>
+  <button class="square-btn eye-btn" type="button" data-eye aria-label="Hide amounts" aria-pressed="false"></button>
+</header>
+
+<div class="ty-bar">
+  <button class="square-btn" type="button" data-ty-prev aria-label="Previous tax year"><span data-icon="back"></span></button>
+  <div class="ty-title">
+    <span class="ty-name" data-ty-name></span>
+    <span class="ty-sub" data-ty-sub></span>
+  </div>
+  <button class="square-btn ty-next" type="button" data-ty-next aria-label="Next tax year"><span data-icon="back"></span></button>
+</div>
+
+<div class="pots" data-stats></div>
+
+<div class="month-list" data-months>
+  <p class="bills-loading">Loading earnings…</p>
+</div>
+
+<div class="earn-foot" data-foot></div>
+
+<button class="fab" type="button" data-add-earning aria-label="Add earnings"><span data-icon="plus"></span></button>

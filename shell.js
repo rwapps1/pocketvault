@@ -21,7 +21,8 @@
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     note: '<path d="M4 4h16v12l-4 4H4z"/><path d="M16 20v-4h4"/><path d="M8 9h8M8 13h5"/>',
-    chevron: '<path d="M6 9l6 6 6-6"/>'
+    chevron: '<path d="M6 9l6 6 6-6"/>',
+    earnings: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.8"/><path d="M6 9.5v5M18 9.5v5"/>'
   };
   var THIN = { eye: 1, eyeOff: 1, back: 1, alert: 1, gear: 1, plus: 1, pen: 1, x: 1, check: 1, note: 1, chevron: 1 };
 
@@ -34,7 +35,7 @@
     var els = (root || document).querySelectorAll("[data-icon]");
     for (var i = 0; i < els.length; i++) els[i].innerHTML = icon(els[i].getAttribute("data-icon"));
   }
-  window.PV = { icon: icon, fillIcons: fillIcons, VIEWS: ["vault", "bills", "investments", "holidays"] };
+  window.PV = { icon: icon, fillIcons: fillIcons };
 
   // ---- Hide amounts, before anything is shown ----
   var hidden = false;

@@ -2,6 +2,7 @@
 
 import { getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { billsCol, amountThisPeriod, money, nextDue as findNextDue, ordinal } from "./bills-data.js";
+import { earningsCol, summarise, currentTaxYear, taxYearLabel, pounds } from "./earnings-data.js";
 
 // Bills are read once per visit to the vault (from the phone's copy when offline).
 let billsOnce = null;
@@ -47,6 +48,13 @@ const summaries = {
     return left === 0
       ? { figure: money(0), line: "All paid", tone: "pos", tally: [paid, bills.length] }
       : { figure: money(left), line: "left to pay", tally: [paid, bills.length] };
+  },
+  earnings: async () => {
+    const snap = await getDocs(earningsCol());
+    const ty = currentTaxYear();
+    const s = summarise(snap.docs.map((d) => d.data()), ty);
+    if (!s.count) return null;
+    return { figure: pounds(s.projected), line: `projected ${taxYearLabel(ty)}` };
   },
   // investments: async () => ({ figure: "£12,345", line: "▲ 4.2% overall", tone: "pos" }),
   // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),

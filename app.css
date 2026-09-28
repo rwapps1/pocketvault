@@ -642,3 +642,39 @@ dialog::backdrop { background: var(--scrim); }
 }
 .bill-sub .usual { font-size: 11px; color: var(--brass); }
 .bill-row.paid .bill-sub .ptype { text-decoration: none; }
+
+/* =====================================================================
+   Earnings
+   ===================================================================== */
+.tabbar.no-tab .tab-ind { opacity: 0; }
+.tab-ind { transition: transform 0.32s cubic-bezier(.3,.7,.2,1), opacity 0.2s; }
+
+.ty-bar { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: -4px; }
+.ty-title { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.ty-name { font-family: var(--font-cond); font-weight: 700; font-size: 22px; letter-spacing: 0.06em; text-transform: uppercase; }
+.ty-sub { font-size: 12.5px; color: var(--muted); }
+.ty-next svg { transform: scaleX(-1); }
+.ty-bar .square-btn:disabled { opacity: 0.3; cursor: default; }
+
+.pot.brass .pot-left { color: var(--brass); }
+
+.month-list { display: flex; flex-direction: column; margin-top: -6px; margin-bottom: 8px; }
+.month-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 44px; padding: 8px 0; border: none; border-bottom: 1px solid var(--inner);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.month-row:disabled { cursor: default; }
+.month-row.future { opacity: 0.4; }
+.m-name { width: 60px; flex: none; display: flex; align-items: baseline; gap: 5px; }
+.m-name b { font-family: var(--font-cond); font-weight: 700; font-size: 18px; }
+.m-name small { font-family: var(--font-cond); font-weight: 500; font-size: 13px; color: var(--muted); }
+.m-bar { flex: 1; height: 6px; border-radius: 3px; background: var(--tally-empty); display: flex; overflow: hidden; }
+.m-bar i { display: block; height: 100%; width: 0; background: var(--brass-fill); border-radius: 3px; transition: width 0.3s ease; }
+.month-row.missing .m-bar, .month-row.future .m-bar { background: transparent; border: 1px dashed var(--border); height: 4px; }
+.month-row.future .m-bar { border-color: transparent; }
+.m-amt { width: 88px; flex: none; text-align: right; font-family: var(--font-cond); font-weight: 600; font-size: 19px; }
+.month-row.missing .m-amt { font-family: var(--font); font-size: 14px; font-weight: 600; color: var(--brass); }
+.month-row.future .m-amt { color: var(--faint); }
+.earn-foot { margin-bottom: 70px; }
+.earn-foot:empty { margin-bottom: 70px; }
