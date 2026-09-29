@@ -4,12 +4,18 @@
 
 <header class="subbar">
   <a class="square-btn" href="./" data-back aria-label="Back to the vault"><span data-icon="back"></span></a>
-  <h1>Investments</h1>
+  <h1>Invest</h1>
   <button class="square-btn eye-btn" type="button" data-eye aria-label="Hide amounts" aria-pressed="false"></button>
+  <button class="square-btn" type="button" data-inv-settings aria-label="Investment settings"><span data-icon="gear"></span></button>
+  <button class="square-btn add-btn-head" type="button" data-inv-add aria-label="Add"><span data-icon="plus"></span></button>
 </header>
 
-<section class="plate empty-state">
-  <span class="box-glyph" data-icon="investments"></span>
-  <h2>Coming soon</h2>
-  <p>Your portfolio tracker will live here.</p>
-</section>
+<div class="segmented inv-tabs" role="group" aria-label="Account">
+  <button type="button" data-tab="t212" aria-pressed="true">Trading 212</button>
+  <button type="button" data-tab="pb" aria-pressed="false">Premium Bonds</button>
+</div>
+
+<div class="inv-pane" data-pane="t212">
+  <p class="bills-loading">Loading investments…</p>
+</div>
+<div class="inv-pane" data-pane="pb" hidden></div>

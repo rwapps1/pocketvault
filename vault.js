@@ -1,8 +1,9 @@
 // vault.js — the home screen: date, deposit boxes, live summaries
 
-import { getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { billsCol, amountThisPeriod, money, nextDue as findNextDue, ordinal } from "./bills-data.js";
 import { earningsCol, summarise, currentTaxYear, taxYearLabel, pounds } from "./earnings-data.js";
+import { investMeta, investCol, pbCol, emptyMeta, computeAll, pbSummary, money0 } from "./investments-data.js";
 
 // Bills are read once per visit to the vault (from the phone's copy when offline).
 let billsOnce = null;
@@ -60,7 +61,16 @@ const summaries = {
     if (last.count) return { figure: pounds(last.total), line: `${taxYearLabel(ty - 1)} total` };
     return null;
   },
-  // investments: async () => ({ figure: "£12,345", line: "▲ 4.2% overall", tone: "pos" }),
+  investments: async () => {
+    // Total current value: Trading 212 pies (latest values entered) + Premium Bonds held
+    const [m, inv, pb] = await Promise.all([getDoc(investMeta()), getDocs(investCol()), getDocs(pbCol())]);
+    const meta = m.exists() ? { ...emptyMeta(), ...m.data() } : emptyMeta();
+    const events = inv.docs.map((d) => d.data()).filter((e) => e && e.date && e.pieId);
+    const bonds = pb.docs.map((d) => d.data()).filter((e) => e && e.date && e.type);
+    if (!meta.pies.length && !bonds.length) return null;
+    const total = computeAll(meta, events).value + pbSummary(bonds).held;
+    return { figure: money0(total), line: "current value" };
+  },
   // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),
 };
 
