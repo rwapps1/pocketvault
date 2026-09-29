@@ -896,3 +896,111 @@ button.sr-take { border: none; background: none; padding: 8px 2px; color: var(--
 .isa { flex-direction: row; align-items: center; gap: 10px; }
 .isa .isa-bar { flex: 1; }
 .view[data-view="investments"], .view[data-view="investments"] .inv-pane { gap: 8px; }
+
+/* =====================================================================
+   v18: Holidays
+   ===================================================================== */
+.view[data-view="holidays"] { gap: 10px; }
+.view[data-view="holidays"] .subbar { gap: 8px; }
+.hol-list { display: flex; flex-direction: column; gap: 10px; }
+.hol-empty { text-align: center; padding: 20px 0; }
+.brass { color: var(--brass); }
+.inv-label.brass { color: var(--brass); }
+.hol-card {
+  display: flex; flex-direction: column; gap: 10px; width: 100%; padding: 13px 14px 12px;
+  background: var(--box); border: 1px solid var(--border); border-radius: 6px;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.hol-card.past { opacity: 0.75; }
+.hol-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.hol-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hol-loc { font-family: var(--font-cond); font-weight: 700; font-size: 28px; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; overflow-wrap: anywhere; }
+.hol-dates { font-size: 13.5px; color: var(--muted); }
+.hol-count { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.hol-count b { font-family: var(--font-cond); font-weight: 700; font-size: 28px; line-height: 1; color: var(--brass); }
+.hol-count small { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.hol-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { padding: 2px 9px; border-radius: 12px; background: var(--inner); font-size: 12.5px; white-space: nowrap; }
+.hol-bar { display: flex; flex-direction: column; gap: 4px; }
+.hb-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hb-fig { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.hb-fig b { color: var(--text); font-weight: 600; }
+.hb-track { height: 5px; border-radius: 3px; background: var(--tally-empty); overflow: hidden; }
+.hb-track i { display: block; height: 100%; background: var(--brass-fill); border-radius: 3px; }
+.hol-bar.in .hb-track i { background: var(--positive); }
+.hol-next { display: flex; align-items: baseline; gap: 8px; padding-top: 8px; border-top: 1px solid var(--inner); font-size: 13.5px; }
+.hol-next > span:last-child { flex: 1; min-width: 0; }
+.hol-next-done { display: inline-flex; align-items: center; gap: 6px; color: var(--positive); }
+.hol-next-done svg { width: 15px; height: 15px; }
+.hol-sum { display: flex; flex-direction: column; gap: 10px; }
+
+.hol-costs { display: flex; flex-direction: column; gap: 10px; }
+.hol-cost { padding: 0 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--box); }
+.hc-head, .hc-pay, .hc-add {
+  width: 100%; display: flex; align-items: center; gap: 10px; border: none; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.hc-head { min-height: 44px; padding: 8px 0 6px; }
+.hc-name { flex: 1; font-family: var(--font-cond); font-weight: 700; font-size: 19px; letter-spacing: 0.04em; text-transform: uppercase; }
+.hc-fig { display: flex; flex-direction: column; align-items: flex-end; }
+.hc-fig b { font-family: var(--font-cond); font-weight: 700; font-size: 19px; }
+.hc-fig small { font-size: 12px; color: var(--muted); }
+.hc-pay { min-height: 48px; padding: 7px 0; border-top: 1px solid var(--inner); }
+.hc-st { display: flex; gap: 8px; }
+.st { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.st.ok { color: var(--positive); }
+.st.due { color: var(--brass); }
+.hc-add { min-height: 40px; border-top: 1px solid var(--inner); color: var(--brass); font-size: 13.5px; font-weight: 600; }
+.hol-add-cost { margin: 0; width: 100%; }
+
+/* Holiday sheets */
+.hol-trip-sheet, .hol-cost-sheet, .hol-pay-sheet, .hol-payer-sheet { padding-top: 8px; }
+.hol-trip-sheet .sheet-grip, .hol-cost-sheet .sheet-grip, .hol-pay-sheet .sheet-grip, .hol-payer-sheet .sheet-grip { margin-bottom: 8px; }
+.hol-trip-sheet h2, .hol-cost-sheet h2, .hol-pay-sheet h2, .hol-payer-sheet h2 { margin: 0 0 8px; font-size: 24px; }
+.hol-trip-sheet .form, .hol-cost-sheet .form, .hol-pay-sheet .form { gap: 9px; }
+.hol-cost-sheet .fld > span:first-child, .hol-pay-sheet .fld > span:first-child, .hol-trip-sheet .fld > span:first-child { font-size: 12.5px; }
+.hol-cost-sheet .segmented button, .hol-pay-sheet .segmented button { min-height: 42px; text-transform: uppercase; letter-spacing: 0.05em; }
+.hol-pay-sheet [data-seg="cur"] button, .hol-cost-sheet [data-seg="cur"] button { font-size: 18px; min-height: 44px; }
+.fld[hidden], .eur-only[hidden], .part[hidden], .other-name[hidden], .dated[hidden] { display: none; }
+.link-btn { border: none; background: none; padding: 8px 0; color: var(--brass); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.trav-rows { display: flex; flex-direction: column; margin-top: -4px; }
+.trav-row { display: flex; align-items: center; gap: 10px; min-height: 50px; border-bottom: 1px solid var(--inner); }
+.trav-check { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.trav-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.trav-check .tbox { width: 22px; height: 22px; flex: none; border-radius: 5px; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; color: transparent; }
+.trav-check .tbox svg { width: 15px; height: 15px; stroke-width: 2.6; }
+.trav-check input:checked + .tbox { background: var(--brass-fill); border-color: var(--brass-fill); color: #15181C; }
+.trav-check input:focus-visible + .tbox { outline: 2px solid var(--brass); outline-offset: 2px; }
+.trav-check .nm { font-size: 15.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trav-row:not(.on) .nm { color: var(--muted); }
+.trav-by { width: 180px; flex: none; display: flex; align-items: center; gap: 6px; }
+.trav-by small { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.trav-by .sel { flex: 1; min-width: 0; }
+.trav-by.off { font-size: 12.5px; color: var(--faint); }
+.type-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.type-grid button {
+  min-height: 42px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--muted);
+  font-family: var(--font-cond); font-weight: 700; font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer;
+}
+.type-grid button[aria-pressed="true"] { background: var(--btn-bg); border-color: var(--btn-bg); color: var(--btn-text); }
+.rate-line { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.rate-line .money { width: 110px; flex: none; }
+.rate-line .inv-update { min-height: 44px; }
+.parts .part { display: flex; flex-direction: column; gap: 9px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; }
+.bal-fig { min-height: 44px; display: flex; align-items: center; font-family: var(--font-cond); font-weight: 700; font-size: 18px; }
+.two.wide-left { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+.share-rows, .payer-rows { display: flex; flex-direction: column; margin-top: -4px; }
+.share-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--inner); }
+.share-amt { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.share-amt .money { width: 112px; }
+.share-amt .money input { min-height: 38px; text-align: right; padding-right: 10px; }
+.share-amt .money input[readonly] { border-color: transparent; background: transparent; font-weight: 600; }
+.share-amt small { font-size: 11.5px; color: var(--muted); }
+/* received toggle: green when they have paid you */
+.paid-toggle.rcv { background: var(--tally-empty); }
+.paid-toggle.rcv span { transform: none; }
+.paid-toggle.rcv[aria-checked="true"] { background: var(--positive); }
+.paid-toggle.rcv[aria-checked="true"] span { transform: translateX(18px); }
+.payer-sub { margin: -2px 0 10px; font-size: 13.5px; color: var(--muted); }
+.hol-payer-sheet .share-row .pr-fig { margin-left: auto; }
+.hol-pay-sheet .split-foot { border-top: none; margin-top: -4px; padding-top: 0; }

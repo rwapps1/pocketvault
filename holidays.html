@@ -6,10 +6,15 @@
   <a class="square-btn" href="./" data-back aria-label="Back to the vault"><span data-icon="back"></span></a>
   <h1>Holidays</h1>
   <button class="square-btn eye-btn" type="button" data-eye aria-label="Hide amounts" aria-pressed="false"></button>
+  <button class="square-btn" type="button" data-hol-people aria-label="People"><span data-icon="gear"></span></button>
+  <button class="square-btn add-btn-head" type="button" data-hol-add aria-label="Add a holiday"><span data-icon="plus"></span></button>
 </header>
 
-<section class="plate empty-state">
-  <span class="box-glyph" data-icon="holidays"></span>
-  <h2>Coming soon</h2>
-  <p>Your holiday cost trackers will live here.</p>
-</section>
+<div class="segmented inv-tabs" role="group" aria-label="Which holidays">
+  <button type="button" data-tab="upcoming" aria-pressed="true">Upcoming</button>
+  <button type="button" data-tab="past" aria-pressed="false">Past</button>
+</div>
+
+<div class="hol-list" data-list>
+  <p class="bills-loading">Loading holidays…</p>
+</div>

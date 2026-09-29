@@ -3,6 +3,7 @@
 import { getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { billsCol, amountThisPeriod, money, nextDue as findNextDue, ordinal } from "./bills-data.js";
 import { earningsCol, summarise, currentTaxYear, taxYearLabel, pounds } from "./earnings-data.js";
+import { holCol, sortTrips, tripPhase, daysToGo, niceDate } from "./holidays-data.js";
 import { investMeta, investCol, pbCol, emptyMeta, computeAll, pbSummary, money0 } from "./investments-data.js";
 
 // Bills are read once per visit to the vault (from the phone's copy when offline).
@@ -71,7 +72,16 @@ const summaries = {
     const total = computeAll(meta, events).value + pbSummary(bonds).held;
     return { figure: money0(total), line: "current value" };
   },
-  // holidays:    async () => ({ line: "Next: Crete", line2: "£840 / £2,400", amount2: true }),
+  holidays: async () => {
+    // Next trip and a countdown
+    const snap = await getDocs(holCol());
+    const trips = snap.docs.map((d) => d.data()).filter((t) => t && t.location && t.start);
+    const next = sortTrips(trips).upcoming[0];
+    if (!next) return null;
+    if (tripPhase(next) === "now") return { figure: "Away now", line: next.location };
+    const n = daysToGo(next);
+    return { figure: n === 0 ? "Today!" : `${n} day${n === 1 ? "" : "s"}`, line: `${next.location} · ${niceDate(next.start, false)}` };
+  },
 };
 
 // Next unpaid bill from today onwards (hidden when everything's paid).
