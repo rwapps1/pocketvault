@@ -93,7 +93,17 @@ export function mount(root, { open }) {
       });
       return;
     }
-    list.replaceChildren(...sorted.map(rowFor));
+    // Outstanding bills first, paid ones underneath — each group keeps the 28th-to-27th order
+    const unpaid = sorted.filter((b) => !b.paid);
+    const done = sorted.filter((b) => b.paid);
+    const rows = unpaid.map(rowFor);
+    if (done.length) {
+      const divider = document.createElement("div");
+      divider.className = "paid-divider";
+      divider.textContent = `Paid · ${done.length}`;
+      rows.push(divider, ...done.map(rowFor));
+    }
+    list.replaceChildren(...rows);
   }
 
   function rowFor(b) {
