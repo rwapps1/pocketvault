@@ -11,11 +11,10 @@ import { col, doc } from "./app.js";
 //   pocketvault/{you}/holidays/{tripId} one document per holiday:
 //     { location, start "YYYY-MM-DD", end "YYYY-MM-DD" | "",
 //       travellers: [ { personId, payerId } ],        // who's going, who pays for them
-//       costs: [ { id, type, name, payments: [ {
-//          id, label, currency "GBP"|"EUR", amount, rate (£ per €1),
-//          status "paid"|"due"|"arrival", date,
-//          split "person"|"payer"|"custom", shares { payerId: amount } (custom only),
-//          received { payerId: true } } ] } ] }
+//       costs: [ { id, type, name, currency "GBP"|"EUR", amount, rate (£ per €1),
+//                  when "advance"|"arrival", supplierPaid,
+//                  split "equal"|"custom", shares { payerId: amount } (custom only),
+//                  received { payerId: true } } ] }
 export const holMeta = () => doc("meta", "holidays");
 export const holCol = () => col("holidays");
 export const newId = () => Math.random().toString(36).slice(2, 10);
@@ -24,8 +23,9 @@ export const COST_TYPES = [
   ["taxis", "UK taxis"], ["flights", "Flights"], ["transfer", "Transfer"],
   ["hotel", "Hotel"], ["tax", "Local tax"], ["other", "Other"]
 ];
-export const typeName = (c) => (c.type === "other" ? c.name || "Other" : (COST_TYPES.find(([k]) => k === c.type) || [0, "Cost"])[1]);
-export const PAYMENT_LABELS = ["Paid in full", "Deposit", "Balance", "Instalment"];
+export const typeLabel = (type) => (COST_TYPES.find(([k]) => k === type) || [0, "Cost"])[1];
+// The name shown on the list, e.g. "Hotel deposit"; defaults to the type
+export const typeName = (c) => (c.name && c.name.trim()) || (c.type === "other" ? "Other" : typeLabel(c.type));
 
 // ---------- Dates ----------
 export const todayIso = (d = new Date()) =>
@@ -101,59 +101,69 @@ function allocate(amount, weights) {
   return out;
 }
 
-// { payerId: amount } for one payment
-export function sharesOf(trip, pay) {
+// Older trips (version 18) kept costs as several payments each. Turn each
+// payment into its own cost so nothing is lost.
+export function normalizeTrip(trip) {
+  if (!(trip.costs || []).some((c) => Array.isArray(c.payments))) return trip;
+  const costs = [];
+  for (const c of trip.costs || []) {
+    if (!Array.isArray(c.payments)) { costs.push(c); continue; }
+    const base = c.type === "other" ? c.name || "Other" : typeLabel(c.type);
+    for (const p of c.payments) {
+      const full = /full/i.test(p.label || "") || c.payments.length === 1;
+      const cost = {
+        id: c.payments.length === 1 ? c.id : p.id, type: c.type, name: full ? (c.type === "other" ? base : "") : `${base} ${String(p.label || "").toLowerCase()}`,
+        currency: p.currency || "GBP", amount: p.amount || 0, rate: p.rate || null,
+        when: p.status === "arrival" ? "arrival" : "advance", supplierPaid: p.status === "paid",
+        split: p.split === "person" ? "equal" : "custom", received: p.received || {}
+      };
+      if (cost.split === "custom") cost.shares = p.split === "custom" ? p.shares || {} : sharesOf(trip, { amount: p.amount, split: "payer" });
+      costs.push(cost);
+    }
+  }
+  return { ...trip, costs };
+}
+
+// { payerId: amount } for one cost. Equal = per person, so someone paying
+// for two people pays two shares.
+export function sharesOf(trip, cost) {
   const payers = payersOf(trip);
-  if (pay.split === "custom") {
+  if (cost.split === "custom") {
     const s = {};
-    payers.forEach((p) => { s[p.id] = (pay.shares || {})[p.id] || 0; });
-    for (const [id, v] of Object.entries(pay.shares || {})) if (!(id in s) && v) s[id] = v; // someone no longer paying
+    payers.forEach((p) => { s[p.id] = (cost.shares || {})[p.id] || 0; });
+    for (const [id, v] of Object.entries(cost.shares || {})) if (!(id in s) && v) s[id] = v; // someone no longer paying
     return s;
   }
-  const weights = payers.map((p) => (pay.split === "payer" ? 1 : p.for.length));
-  const alloc = allocate(pay.amount || 0, weights);
+  const weights = payers.map((p) => (cost.split === "payer" ? 1 : p.for.length));
+  const alloc = allocate(cost.amount || 0, weights);
   return Object.fromEntries(payers.map((p, i) => [p.id, alloc[i]]));
 }
 
 // ---------- Totals for a trip (all in pence) ----------
 export function tripTotals(trip) {
-  let total = 0, supplier = 0, received = 0;
+  let total = 0, supplier = 0, received = 0, arrivalGBP = 0;
   const arrival = { GBP: 0, EUR: 0 };
   const byPayer = {};
-  const payments = [];
   for (const c of trip.costs || []) {
-    for (const p of c.payments || []) {
-      const g = toGBP(p.amount || 0, p);
-      total += g;
-      if (p.status === "paid") supplier += g;
-      if (p.status === "arrival") arrival[p.currency] = (arrival[p.currency] || 0) + (p.amount || 0);
-      const shares = sharesOf(trip, p);
-      let inCount = 0, owed = 0;
-      for (const [id, v] of Object.entries(shares)) {
-        if (!v) continue;
-        owed++;
-        const b = (byPayer[id] ||= { total: 0, received: 0 });
-        const sg = toGBP(v, p);
-        b.total += sg;
-        if ((p.received || {})[id]) { b.received += sg; received += sg; inCount++; }
-      }
-      payments.push({ cost: c, pay: p, gbp: g, inCount, owed });
+    const g = toGBP(c.amount || 0, c);
+    total += g;
+    if (c.supplierPaid) supplier += g;
+    else if (c.when === "arrival") { arrival[c.currency] = (arrival[c.currency] || 0) + (c.amount || 0); arrivalGBP += g; }
+    for (const [id, v] of Object.entries(sharesOf(trip, c))) {
+      if (!v) continue;
+      const b = (byPayer[id] ||= { total: 0, received: 0 });
+      const sg = toGBP(v, c);
+      b.total += sg;
+      if ((c.received || {})[id]) { b.received += sg; received += sg; }
     }
   }
-  const arrivalGBP = (trip.costs || []).flatMap((c) => c.payments || []).filter((p) => p.status === "arrival")
-    .reduce((s, p) => s + toGBP(p.amount || 0, p), 0);
-  return { total, supplier, received, arrival, arrivalGBP, byPayer, payments };
+  return { total, supplier, received, arrival, arrivalGBP, byPayer };
 }
 
-// The next payment still to be made to a supplier: dated ones first, then on arrival.
+// The next cost still to pay a supplier: ones paid in advance first, then on arrival.
 export function nextPayment(trip) {
-  const open = [];
-  for (const c of trip.costs || []) for (const p of c.payments || []) {
-    if (p.status === "paid") continue;
-    open.push({ cost: c, pay: p, key: p.status === "due" && p.date ? p.date : (trip.start || "9999") + "z" });
-  }
-  open.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
-  return open[0] || null;
+  const open = (trip.costs || []).filter((c) => !c.supplierPaid);
+  return open.find((c) => c.when !== "arrival") || open[0] || null;
 }
 
 export function sortTrips(trips, today = todayIso()) {

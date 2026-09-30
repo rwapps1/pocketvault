@@ -1004,3 +1004,30 @@ button.sr-take { border: none; background: none; padding: 8px 2px; color: var(--
 .payer-sub { margin: -2px 0 10px; font-size: 13.5px; color: var(--muted); }
 .hol-payer-sheet .share-row .pr-fig { margin-left: auto; }
 .hol-pay-sheet .split-foot { border-top: none; margin-top: -4px; padding-top: 0; }
+
+/* ---- v19: simpler Holidays: tick straight from each cost ---- */
+.hol-owed { display: flex; flex-direction: column; gap: 2px; }
+.owed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+.owed { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--inner); min-width: 0; }
+.owed span { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.owed b { font-family: var(--font-cond); font-weight: 600; font-size: 16px; white-space: nowrap; }
+.hol-cost { padding: 0 12px 2px; }
+.hc-head { align-items: flex-start; padding: 10px 0 6px; }
+.hc-titles { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hc-titles small { font-size: 12px; color: var(--muted); }
+.hc-titles small .brass { font-weight: 600; }
+.hc-sup { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 0 8px; font-size: 12.5px; color: var(--muted); }
+.hc-line { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 5px 0; border-top: 1px solid var(--inner); }
+.hc-line .pr-fig b { font-family: var(--font-cond); font-weight: 600; font-size: 16px; }
+.tick {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 11px; border-radius: 18px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  font-family: var(--font-cond); font-weight: 700; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase;
+  white-space: nowrap; cursor: pointer; position: relative;
+}
+.tick::before { content: ""; position: absolute; inset: -5px -3px; } /* bigger tap area */
+.tick i { width: 13px; height: 13px; border-radius: 7px; border: 1.5px solid currentColor; }
+.tick svg { width: 15px; height: 15px; stroke-width: 2.6; }
+.tick.on { border-color: var(--positive); color: var(--positive); background: color-mix(in srgb, var(--positive) 14%, transparent); }
+.hc-line .tick { min-width: 58px; justify-content: center; }
+.hol-cost-sheet .share-amt .money input[readonly] { pointer-events: none; }

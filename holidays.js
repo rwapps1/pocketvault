@@ -1,17 +1,17 @@
 // holidays.js — the Holidays mini app
 //
 // Each holiday has a location, dates, who's going and who pays for whom.
-// Costs (taxis, flights, transfer, hotel, local tax, other) are made of
-// payments — e.g. a deposit and a balance — each marked paid, due by a
-// date, or paid on arrival, and split between the payers. You tick each
-// payer's share when they've paid you. Updates live and works offline.
+// Each cost (taxis, flights, transfer, hotel, local tax, other) is paid in
+// advance or on arrival and split equally per person, or with your own
+// amounts. Tick "supplier paid" and each payer's "in" straight from the
+// trip screen. Updates live and works offline.
 
 import { confirmDialog } from "./app.js";
 import {
   onSnapshot, setDoc, deleteDoc, doc as fsDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
-  holMeta, holCol, newId, COST_TYPES, typeName, PAYMENT_LABELS,
+  holMeta, holCol, newId, COST_TYPES, typeName, typeLabel, normalizeTrip,
   todayIso, niceDate, tripDates, tripPhase, daysToGo,
   money, pounds0, SYMBOL, parseMoney, moneyInput, toGBP,
   payersOf, sharesOf, tripTotals, nextPayment, sortTrips
@@ -54,7 +54,7 @@ export function mount(root, { open }) {
       loaded.meta = true; render();
     }, showError));
     stops.push(onSnapshot(holCol(), (snap) => {
-      trips = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((t) => t && t.location);
+      trips = snap.docs.map((d) => normalizeTrip({ id: d.id, ...d.data() })).filter((t) => t && t.location);
       loaded.trips = true; render();
     }, showError));
   });
@@ -88,9 +88,8 @@ export function mount(root, { open }) {
   }
   function nextLine(t) {
     const n = nextPayment(t);
-    if (!n) return (t.costs || []).length ? `<span class="hol-next-done">${icon("check")}Everything paid to suppliers</span>` : `<span class="muted">No costs added yet</span>`;
-    const when = n.pay.status === "arrival" ? "on arrival" : n.pay.date ? `due ${niceDate(n.pay.date)}` : "due";
-    return `<span>${esc(typeName(n.cost))}${/full/i.test(n.pay.label) ? "" : " " + esc(n.pay.label.toLowerCase())} <span class="amt">${money(n.pay.amount, n.pay.currency)}</span> · ${when}</span>`;
+    if (!n) return (t.costs || []).length ? `<span class="hol-next-done">${icon("check")}All suppliers paid</span>` : `<span class="muted">No costs added yet</span>`;
+    return `<span>${esc(typeName(n))} <span class="amt">${money(n.amount, n.currency)}</span> · ${n.when === "arrival" ? "on arrival" : "to pay"}</span>`;
   }
 
   function render() {
@@ -123,7 +122,7 @@ export function mount(root, { open }) {
           ${countdown(t)}
         </div>
         <div class="hol-chips">${(t.travellers || []).map((x) => `<span class="chip">${esc(personName(x.personId))}</span>`).join("")}</div>
-        ${tot.total ? bar("Received from payers", tot.received, tot.total, "in") + bar("Paid to suppliers", tot.supplier, tot.total) : ""}
+        ${tot.total ? bar("Money received", tot.received, tot.total, "in") + bar("Suppliers paid", tot.supplier, tot.total) : ""}
         <div class="hol-next"><span class="inv-label brass">Next</span>${nextLine(t)}</div>
       </button>`);
     if (phase === "past") card.querySelector(".hol-next").remove();
@@ -160,8 +159,6 @@ export function mount(root, { open }) {
       onPick(b.dataset.v);
     }));
   }
-  const toggleHtml = (on, label) =>
-    `<button type="button" class="paid-toggle rcv" role="switch" aria-checked="${on ? "true" : "false"}" aria-label="${esc(label)}"><span></span></button>`;
 
   // Today's euro rate (free service, no sign-up). Falls back quietly.
   async function fetchRate() {
@@ -227,7 +224,7 @@ export function mount(root, { open }) {
     const d = panelShell(t0.location, `<button class="square-btn" type="button" data-edit aria-label="Edit holiday">${icon("pen")}</button>
       <button class="square-btn add-btn-head" type="button" data-add aria-label="Add a cost">${icon("plus")}</button>`);
     d.querySelector("[data-edit]").addEventListener("click", () => editTrip(tripById(tripId)));
-    d.querySelector("[data-add]").addEventListener("click", () => addCost(tripId));
+    d.querySelector("[data-add]").addEventListener("click", () => openCost(tripId, null));
     const body = d.querySelector(".panel-body");
     const draw = () => {
       const t = tripById(tripId);
@@ -242,70 +239,84 @@ export function mount(root, { open }) {
             <small class="inv-asof">${tripDates(t)} · ${n} traveller${n === 1 ? "" : "s"}</small></div>
             ${countdown(t)}
           </div>
-          ${tot.total ? bar("Received from payers", tot.received, tot.total, "in") + bar("Paid to suppliers", tot.supplier, tot.total) : ""}
-          ${arr ? `<small class="inv-asof">To pay on arrival: <span class="amt">${arr}</span>${hasEuroArrival(tot) ? ` <span class="amt">(≈ ${pounds0(tot.arrivalGBP)})</span>` : ""}</small>` : ""}
+          ${tot.total ? bar("Money received", tot.received, tot.total, "in") + bar("Suppliers paid", tot.supplier, tot.total) : ""}
+          ${arr ? `<small class="inv-asof">To pay on arrival: <span class="amt">${arr}</span>${tot.arrival.EUR ? ` <span class="amt">(≈ ${pounds0(tot.arrivalGBP)})</span>` : ""}</small>` : ""}
         </section>`);
-      // Who's paying
-      const who = el(`<div class="inv-list"><div class="act-head"><span class="inv-label">Who's paying</span><span class="act-hint">Tap to tick off</span></div></div>`);
+      // Still to come in, per payer
       const payers = payersOf(t);
-      if (!payers.length) who.appendChild(el(`<p class="act-empty">Nobody's going yet — tap the pen to add travellers.</p>`));
+      const who = el(`<div class="hol-owed"><span class="inv-label">Still to come in</span><div class="owed-grid"></div></div>`);
+      const grid = who.querySelector(".owed-grid");
+      if (!payers.length) who.appendChild(el(`<p class="act-empty">Nobody's going yet. Tap the pen to add who's going.</p>`));
       payers.forEach((p) => {
         const b = tot.byPayer[p.id] || { total: 0, received: 0 };
         const left = b.total - b.received;
-        const row = el(`<button type="button" class="pot-row">
-            <span class="pr-text"><b>${esc(personName(p.id))}</b><small>${esc(forText(p))}</small></span>
-            <span class="pr-fig"><b class="amt">${pounds0(b.total)}</b><small>${left > 0 ? `<span class="up amt">${pounds0(b.received)} in</span> · <span class="brass amt">${pounds0(left)} to come</span>` : b.total ? `<span class="up">All paid ✓</span>` : ""}</small></span>
-          </button>`);
-        row.addEventListener("click", () => openPayer(tripId, p.id));
-        who.appendChild(row);
+        grid.appendChild(el(`<div class="owed"><span>${esc(personName(p.id))}</span>${left > 0 ? `<b class="brass amt">${pounds0(left)}</b>` : b.total ? `<b class="up">✓ All in</b>` : `<b class="muted">—</b>`}</div>`));
       });
-      // Costs
-      const costs = el(`<div class="hol-costs"><div class="act-head"><span class="inv-label">Costs</span>${(t.costs || []).length ? `<span class="act-hint">Tap a payment to edit</span>` : ""}</div></div>`);
-      (t.costs || []).forEach((c) => costs.appendChild(costBlock(t, c)));
+      // Costs, each with its ticks
+      const costs = el(`<div class="hol-costs"><div class="act-head"><span class="inv-label">Costs</span>${(t.costs || []).length ? `<span class="act-hint">Tap a name to edit</span>` : ""}</div></div>`);
+      (t.costs || []).forEach((c) => costs.appendChild(costCard(t, c)));
       const addBtn = el(`<button type="button" class="btn-dashed hol-add-cost">+ Add a cost</button>`);
-      addBtn.addEventListener("click", () => addCost(tripId));
+      addBtn.addEventListener("click", () => openCost(tripId, null));
       costs.appendChild(addBtn);
       body.replaceChildren(card, who, costs);
     };
     draw();
     showDialog(d, draw);
   }
-  const hasEuro = (t) => (t.costs || []).some((c) => (c.payments || []).some((p) => p.currency === "EUR"));
-  const hasEuroArrival = (tot) => !!tot.arrival.EUR;
+  const hasEuro = (t) => (t.costs || []).some((c) => c.currency === "EUR");
 
-  function costBlock(t, c) {
-    const pays = c.payments || [];
-    const cur = pays.length && pays.every((p) => p.currency === pays[0].currency) ? pays[0].currency : null;
-    const total = pays.reduce((s, p) => s + (p.amount || 0), 0);
-    const gbp = pays.reduce((s, p) => s + toGBP(p.amount || 0, p), 0);
+  // A tick button: "Supplier paid" or "In"
+  const tickHtml = (on, text, label) =>
+    `<button type="button" class="tick${on ? " on" : ""}" aria-pressed="${on}" aria-label="${esc(label)}">${on ? icon("check") : "<i></i>"}${text}</button>`;
+
+  function costCard(t, c) {
+    const eur = c.currency === "EUR";
     const b = el(`<section class="hol-cost">
         <button type="button" class="hc-head">
-          <span class="hc-name">${esc(typeName(c))}</span>
-          <span class="hc-fig"><b class="amt">${cur ? money(total, cur) : pounds0(gbp)}</b>${cur === "EUR" ? `<small class="amt">≈ ${pounds0(gbp)}</small>` : ""}</span>
+          <span class="hc-titles"><span class="hc-name">${esc(typeName(c))}</span>
+            <small><span class="${c.when === "arrival" ? "brass" : ""}">${c.when === "arrival" ? "On arrival" : "In advance"}</span> · ${c.split === "custom" ? "custom split" : "equal per person"}</small></span>
+          <span class="hc-fig"><b class="amt">${money(c.amount, c.currency)}</b>${eur ? `<small class="amt">≈ ${pounds0(toGBP(c.amount, c))}</small>` : ""}</span>
         </button>
+        <div class="hc-sup"><span>Supplier</span>${tickHtml(!!c.supplierPaid, "Supplier paid", `${typeName(c)}: supplier paid`)}</div>
       </section>`);
-    b.querySelector(".hc-head").addEventListener("click", () => editCost(t.id, c.id));
+    b.querySelector(".hc-head").addEventListener("click", () => openCost(t.id, c.id));
+    b.querySelector(".hc-sup .tick").addEventListener("click", () => setTick(t.id, c.id, "supplier", null));
     const payers = payersOf(t);
-    pays.forEach((p) => {
-      const shares = sharesOf(t, p);
-      const owed = Object.entries(shares).filter(([, v]) => v);
-      const inCount = owed.filter(([id]) => (p.received || {})[id]).length;
-      const when = p.status === "paid" ? (p.date ? `Paid ${niceDate(p.date)}` : "Paid")
-        : p.status === "due" ? (p.date ? `Due ${niceDate(p.date)}` : "Due") : "On arrival";
-      const split = p.split === "payer" ? "split per payer" : p.split === "custom" ? "custom split" : "split per person";
-      const sup = p.status === "paid" ? `<span class="st ok">✓ Supplier</span>` : p.status === "arrival" ? `<span class="st">On arrival</span>` : `<span class="st due">Due</span>`;
-      const rec = owed.length ? `<span class="st ${inCount === owed.length ? "ok" : "due"}">${inCount === owed.length ? "✓ " : ""}${inCount}/${owed.length} in</span>` : "";
-      const row = el(`<button type="button" class="hc-pay">
-          <span class="pr-text"><b>${esc(p.label)}</b><small>${when} · ${split}${payers.length ? "" : " · nobody going yet"}</small></span>
-          <span class="pr-fig"><b class="amt">${money(p.amount, p.currency)}</b><small class="hc-st">${sup}${rec}</small></span>
-        </button>`);
-      row.addEventListener("click", () => openPayment(t.id, c.id, p.id));
+    const shares = sharesOf(t, c);
+    const ids = [...payers.map((x) => x.id), ...Object.keys(shares).filter((id) => !payers.some((x) => x.id === id))];
+    if (!ids.length) b.appendChild(el(`<p class="act-empty">Add who's going to split this cost.</p>`));
+    ids.forEach((id) => {
+      const v = shares[id] || 0;
+      if (!v) return;
+      const payer = payers.find((x) => x.id === id);
+      const on = !!(c.received || {})[id];
+      const row = el(`<div class="hc-line">
+          <span class="pr-text"><b>${esc(personName(id))}</b><small>${payer ? esc(forText(payer)) : "no longer going"}</small></span>
+          <span class="pr-fig"><b class="amt">${money(v, c.currency)}</b>${eur ? `<small class="amt">≈ ${pounds0(toGBP(v, c))}</small>` : ""}</span>
+          ${tickHtml(on, "In", `${personName(id)} has paid you for ${typeName(c)}`)}
+        </div>`);
+      row.querySelector(".tick").addEventListener("click", () => setTick(t.id, c.id, "in", id));
       b.appendChild(row);
     });
-    const add = el(`<button type="button" class="hc-add">+ Add a payment</button>`);
-    add.addEventListener("click", () => openPayment(t.id, c.id, null));
-    b.appendChild(add);
     return b;
+  }
+
+  // Tick or untick "supplier paid" or a payer's "in", straight from the list
+  function setTick(tripId, costId, kind, payerId) {
+    const tt = clone(tripById(tripId));
+    const c = (tt.costs || []).find((x) => x.id === costId);
+    if (!c) return;
+    let on;
+    if (kind === "supplier") on = c.supplierPaid = !c.supplierPaid;
+    else {
+      c.received = c.received || {};
+      on = !c.received[payerId];
+      if (on) c.received[payerId] = true; else delete c.received[payerId];
+    }
+    if (on && navigator.vibrate) navigator.vibrate(12);
+    const i = trips.findIndex((x) => x.id === tripId);
+    if (i >= 0) { trips[i] = tt; render(); } // show it straight away
+    saveTrip(tt);
   }
 
   // =====================================================================
@@ -398,209 +409,35 @@ export function mount(root, { open }) {
   }
 
   // =====================================================================
-  // Add a cost (with its first payment or deposit + balance)
+  // Add / edit a cost: what for, amount, when, and how it's split
   // =====================================================================
-  function addCost(tripId) {
-    const st = { type: "flights", currency: "GBP", mode: "full" };
-    const d = sheetShell("hol-cost-sheet", "Add a cost");
-    const statusSel = (name, v) => `<span class="sel"><select name="${name}">
-        <option value="paid"${v === "paid" ? " selected" : ""}>Paid</option>
-        <option value="due"${v === "due" ? " selected" : ""}>Due by date</option>
-        <option value="arrival"${v === "arrival" ? " selected" : ""}>On arrival</option></select>${icon("chevron")}</span>`;
+  function openCost(tripId, costId) {
+    const t0 = tripById(tripId);
+    if (!t0) return;
+    const existing = costId ? (t0.costs || []).find((x) => x.id === costId) : null;
+    const last = (t0.costs || [])[(t0.costs || []).length - 1];
+    const c = existing ? clone(existing) : {
+      id: newId(), type: "flights", name: "", currency: last ? last.currency : "GBP", amount: 0,
+      rate: (meta.rates || {}).EUR || null, when: "advance", supplierPaid: false, split: "equal", received: {}
+    };
+    c.received = c.received || {};
+    let custom = c.split === "custom" ? { ...(c.shares || {}) } : null;
+    const d = sheetShell("hol-cost-sheet", existing ? "Edit cost" : "Add a cost");
     d.innerHTML = `
       <form method="dialog" novalidate>
         <div class="sheet-grip"></div>
-        <h2>Add a cost</h2>
+        <h2>${existing ? "Edit cost" : "Add a cost"}</h2>
         <div class="form">
-          <div class="fld"><span>Type</span><div class="type-grid">${COST_TYPES.map(([k, n]) =>
-            `<button type="button" data-type="${k}" aria-pressed="${k === st.type}">${k === "other" ? "Other…" : n}</button>`).join("")}</div></div>
-          <label class="fld other-name" hidden><span>Name</span><input name="name" type="text" autocomplete="off" maxlength="30" placeholder="e.g. Car hire"></label>
-          <div class="two">
-            <label class="fld"><span>Total cost</span><span class="money"><i data-sym>£</i><input name="total" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
-            <div class="fld"><span>Currency</span>${segButtons("cur", [["GBP", "£"], ["EUR", "€"]], st.currency)}</div>
-          </div>
-          <div class="eur-only" hidden>${rateHtml(meta.rates && meta.rates.EUR)}</div>
-          <div class="fld"><span>How is it being paid?</span>${segButtons("mode", [["full", "In full"], ["split", "Deposit + balance"]], st.mode)}</div>
-          <div class="parts">
-            <div class="part" data-part="full">
-              <div class="two"><div class="fld"><span>Status</span>${statusSel("fullStatus", "paid")}</div>
-              <label class="fld dated"><span data-dl>Paid on</span><input name="fullDate" type="date"></label></div>
-            </div>
-            <div class="part" data-part="split" hidden>
-              <div class="two"><label class="fld"><span>Deposit</span><span class="money"><i data-sym>£</i><input name="deposit" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
-                <div class="fld"><span>Status</span>${statusSel("depStatus", "paid")}</div></div>
-              <label class="fld dated"><span data-dl>Paid on</span><input name="depDate" type="date"></label>
-              <div class="two"><div class="fld"><span>Balance</span><div class="bal-fig amt" data-balance>—</div></div>
-                <div class="fld"><span>Status</span>${statusSel("balStatus", "arrival")}</div></div>
-              <label class="fld dated"><span data-dl>Due by</span><input name="balDate" type="date"></label>
-            </div>
-          </div>
-          <small class="tp-hint">Each payment is split per person to start with. Open it afterwards to change the split or tick who's paid you.</small>
-          <p class="form-err" role="alert"></p>
-          <div class="sheet-buttons">
-            <button type="button" class="btn-ghost" data-cancel>Cancel</button>
-            <button type="submit" class="btn">Save</button>
-          </div>
-        </div>
-      </form>`;
-    const f = d.querySelector("form");
-    const err = d.querySelector(".form-err");
-    const today = todayIso();
-    f.elements.fullDate.value = today; f.elements.depDate.value = today;
-    const trip = tripById(tripId);
-    if (trip && trip.start) f.elements.balDate.value = trip.start;
-    d.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => {
-      st.type = b.dataset.type;
-      d.querySelectorAll("[data-type]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      d.querySelector(".other-name").hidden = st.type !== "other";
-      if (st.type === "other") f.elements.name.focus();
-    }));
-    const updBalance = () => {
-      const tot = parseMoney(f.elements.total.value), dep = parseMoney(f.elements.deposit.value);
-      d.querySelector("[data-balance]").textContent = tot != null && dep != null && tot >= dep ? money(tot - dep, st.currency) : "—";
-    };
-    const updDates = () => {
-      const pairs = [["fullStatus", "fullDate"], ["depStatus", "depDate"], ["balStatus", "balDate"]];
-      pairs.forEach(([s, dt]) => {
-        const v = f.elements[s].value;
-        const lab = f.elements[dt].closest(".fld");
-        lab.hidden = v === "arrival";
-        lab.querySelector("[data-dl]").textContent = v === "paid" ? "Paid on" : "Due by";
-      });
-    };
-    ["fullStatus", "depStatus", "balStatus"].forEach((n) => f.elements[n].addEventListener("change", updDates));
-    f.elements.total.addEventListener("input", updBalance);
-    f.elements.deposit.addEventListener("input", updBalance);
-    wireSeg(d, "cur", (v) => {
-      st.currency = v;
-      d.querySelectorAll("[data-sym]").forEach((s) => { s.textContent = SYMBOL[v]; });
-      d.querySelector(".eur-only").hidden = v !== "EUR";
-      updBalance();
-    });
-    wireSeg(d, "mode", (v) => {
-      st.mode = v;
-      d.querySelector('[data-part="full"]').hidden = v !== "full";
-      d.querySelector('[data-part="split"]').hidden = v !== "split";
-    });
-    wireRate(d, () => {});
-    updDates();
-    d.querySelector("[data-cancel]").addEventListener("click", () => d.close());
-    f.addEventListener("submit", (e) => {
-      e.preventDefault();
-      err.textContent = "";
-      const t = tripById(tripId);
-      if (!t) { d.close(); return; }
-      const name = f.elements.name.value.trim();
-      if (st.type === "other" && !name) { err.textContent = "Give the cost a name."; f.elements.name.focus(); return; }
-      const total = parseMoney(f.elements.total.value);
-      if (!total) { err.textContent = "Enter the total cost."; f.elements.total.focus(); return; }
-      let rate = null;
-      if (st.currency === "EUR") { rate = readRate(d); if (!rate) { err.textContent = "Enter the exchange rate (or tap Today's rate)."; return; } }
-      const mk = (label, amount, status, date) => ({
-        id: newId(), label, currency: st.currency, amount, rate, status, date: status === "arrival" ? "" : date || "",
-        split: "person", received: {}
-      });
-      let payments;
-      if (st.mode === "full") {
-        payments = [mk("Paid in full", total, f.elements.fullStatus.value, f.elements.fullDate.value)];
-        if (payments[0].status !== "paid") payments[0].label = "Full payment";
-      } else {
-        const dep = parseMoney(f.elements.deposit.value);
-        if (!dep || dep >= total) { err.textContent = "The deposit must be more than 0 and less than the total."; f.elements.deposit.focus(); return; }
-        payments = [mk("Deposit", dep, f.elements.depStatus.value, f.elements.depDate.value),
-          mk("Balance", total - dep, f.elements.balStatus.value, f.elements.balDate.value)];
-      }
-      const cost = { id: newId(), type: st.type, name: st.type === "other" ? name : "", payments };
-      saveTrip({ ...clone(t), costs: [...(t.costs || []), cost] });
-      if (rate && rate !== (meta.rates || {}).EUR) saveMeta({ ...meta, rates: { ...(meta.rates || {}), EUR: rate } });
-      d.close();
-    });
-    showDialog(d);
-  }
-
-  // Edit a cost: its type/name, or delete it
-  function editCost(tripId, costId) {
-    const t = tripById(tripId);
-    const c = t && (t.costs || []).find((x) => x.id === costId);
-    if (!c) return;
-    const st = { type: c.type };
-    const d = sheetShell("hol-cost-sheet", "Edit cost");
-    d.innerHTML = `
-      <form method="dialog" novalidate>
-        <div class="sheet-grip"></div>
-        <h2>Edit cost</h2>
-        <div class="form">
-          <div class="fld"><span>Type</span><div class="type-grid">${COST_TYPES.map(([k, n]) =>
-            `<button type="button" data-type="${k}" aria-pressed="${k === st.type}">${k === "other" ? "Other…" : n}</button>`).join("")}</div></div>
-          <label class="fld other-name"${c.type === "other" ? "" : " hidden"}><span>Name</span><input name="name" type="text" autocomplete="off" maxlength="30"></label>
-          <small class="tp-hint">To change amounts, dates or who's paid, tap the payment itself.</small>
-          <p class="form-err" role="alert"></p>
-          <div class="sheet-buttons">
-            <button type="button" class="btn-ghost danger" data-del>Delete</button>
-            <button type="button" class="btn-ghost" data-cancel>Cancel</button>
-            <button type="submit" class="btn">Save</button>
-          </div>
-        </div>
-      </form>`;
-    const f = d.querySelector("form");
-    f.elements.name.value = c.name || "";
-    d.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => {
-      st.type = b.dataset.type;
-      d.querySelectorAll("[data-type]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
-      d.querySelector(".other-name").hidden = st.type !== "other";
-    }));
-    d.querySelector("[data-cancel]").addEventListener("click", () => d.close());
-    f.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const name = f.elements.name.value.trim();
-      if (st.type === "other" && !name) { d.querySelector(".form-err").textContent = "Give the cost a name."; return; }
-      const tt = clone(tripById(tripId));
-      tt.costs = tt.costs.map((x) => (x.id === costId ? { ...x, type: st.type, name: st.type === "other" ? name : "" } : x));
-      saveTrip(tt);
-      d.close();
-    });
-    d.querySelector("[data-del]").addEventListener("click", async () => {
-      if (!(await confirmDialog(`Delete ${typeName(c)} and its payments?`, "Delete", "Keep"))) return;
-      const tt = clone(tripById(tripId));
-      tt.costs = tt.costs.filter((x) => x.id !== costId);
-      saveTrip(tt);
-      d.close();
-    });
-    showDialog(d);
-  }
-
-  // =====================================================================
-  // One payment: amount, currency, status, split and who's paid you
-  // =====================================================================
-  function openPayment(tripId, costId, payId) {
-    const t = tripById(tripId);
-    const c = t && (t.costs || []).find((x) => x.id === costId);
-    if (!c) return;
-    const existing = payId ? (c.payments || []).find((p) => p.id === payId) : null;
-    const prev = (c.payments || [])[0];
-    const p = existing ? clone(existing) : {
-      id: newId(), label: (c.payments || []).length ? "Balance" : "Paid in full",
-      currency: prev ? prev.currency : "GBP", amount: 0, rate: prev ? prev.rate : (meta.rates || {}).EUR || null,
-      status: "due", date: t.start || "", split: "person", received: {}
-    };
-    p.received = p.received || {};
-    const d = sheetShell("hol-pay-sheet", `${typeName(c)} payment`);
-    const labels = PAYMENT_LABELS.includes(p.label) ? PAYMENT_LABELS : [p.label, ...PAYMENT_LABELS];
-    d.innerHTML = `
-      <form method="dialog" novalidate>
-        <div class="sheet-grip"></div>
-        <h2>${esc(typeName(c))} · <span data-title>${esc(p.label)}</span></h2>
-        <div class="form">
+          <div class="fld"><span>What for</span><div class="type-grid">${COST_TYPES.map(([k, n]) =>
+            `<button type="button" data-type="${k}" aria-pressed="${k === c.type}">${k === "other" ? "Other…" : n}</button>`).join("")}</div></div>
+          <label class="fld"><span>Name on the list</span><input name="name" type="text" autocomplete="off" maxlength="30"></label>
           <div class="two wide-left">
-            <div class="fld"><span>Payment</span><span class="sel"><select name="label">${labels.map((l) => `<option${l === p.label ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>${icon("chevron")}</span></div>
-            <div class="fld"><span>Currency</span>${segButtons("cur", [["GBP", "£"], ["EUR", "€"]], p.currency)}</div>
+            <label class="fld"><span>Amount</span><span class="money"><i data-sym>${SYMBOL[c.currency]}</i><input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
+            <div class="fld"><span>Currency</span>${segButtons("cur", [["GBP", "£"], ["EUR", "€"]], c.currency)}</div>
           </div>
-          <label class="fld"><span>Amount</span><span class="money"><i data-sym>${SYMBOL[p.currency]}</i><input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></span></label>
-          <div class="eur-only"${p.currency === "EUR" ? "" : " hidden"}>${rateHtml(p.rate)}</div>
-          <div class="fld"><span>Status</span>${segButtons("status", [["paid", "Paid"], ["due", "Due by date"], ["arrival", "On arrival"]], p.status)}</div>
-          <label class="fld dated"${p.status === "arrival" ? " hidden" : ""}><span data-dl>${p.status === "paid" ? "Paid on" : "Due by"}</span><input name="date" type="date"></label>
-          <div class="fld"><span>Split</span>${segButtons("split", [["person", "Per person"], ["payer", "Per payer"], ["custom", "Custom"]], p.split)}</div>
-          <div class="act-head"><span class="inv-label">Shares</span><span class="act-hint muted">Received?</span></div>
+          <div class="eur-only"${c.currency === "EUR" ? "" : " hidden"}>${rateHtml(c.rate)}</div>
+          <div class="fld"><span>When</span>${segButtons("when", [["advance", "Pay in advance"], ["arrival", "On arrival"]], c.when)}</div>
+          <div class="fld"><span>Split</span>${segButtons("split", [["equal", "Equal"], ["custom", "Custom"]], c.split === "custom" ? "custom" : "equal")}</div>
           <div class="share-rows"></div>
           <div class="split-foot"><span data-left></span></div>
           <p class="form-err" role="alert"></p>
@@ -613,46 +450,44 @@ export function mount(root, { open }) {
       </form>`;
     const f = d.querySelector("form");
     const err = d.querySelector(".form-err");
-    f.elements.amount.value = p.amount ? moneyInput(p.amount) : "";
-    f.elements.date.value = p.date || (p.status === "paid" ? todayIso() : "");
-    const rowsEl = d.querySelector(".share-rows");
-    let customShares = null; // { payerId: amount } while in custom
+    const nameInput = f.elements.name;
+    // The name follows the type until you type your own (e.g. "Hotel deposit")
+    let nameAuto = !existing || !existing.name || existing.name === typeLabel(existing.type);
+    nameInput.value = existing ? typeName(existing) : typeLabel(c.type);
+    nameInput.addEventListener("input", () => { nameAuto = false; });
+    f.elements.amount.value = c.amount ? moneyInput(c.amount) : "";
+    f.addEventListener("input", () => { err.textContent = ""; });
 
-    const current = () => ({ ...p, amount: parseMoney(f.elements.amount.value) || 0, rate: p.currency === "EUR" ? readRate(d) : null });
+    d.querySelectorAll("[data-type]").forEach((b) => b.addEventListener("click", () => {
+      c.type = b.dataset.type;
+      d.querySelectorAll("[data-type]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      if (nameAuto) nameInput.value = c.type === "other" ? "" : typeLabel(c.type);
+      if (c.type === "other") { nameAuto = false; nameInput.focus(); }
+    }));
+
+    const rowsEl = d.querySelector(".share-rows");
+    const current = () => ({ ...c, amount: parseMoney(f.elements.amount.value) || 0, rate: c.currency === "EUR" ? readRate(d) : null, split: custom ? "custom" : "equal", shares: custom || {} });
     function drawShares() {
-      const tt = tripById(tripId) || t;
+      const t = tripById(tripId) || t0;
       const cur = current();
-      const shares = p.split === "custom" ? customShares : sharesOf(tt, cur);
-      const payers = payersOf(tt);
+      const shares = custom || sharesOf(t, cur);
+      const payers = payersOf(t);
       const ids = [...payers.map((x) => x.id), ...Object.keys(shares).filter((id) => !payers.some((x) => x.id === id))];
-      if (!ids.length) { rowsEl.innerHTML = `<p class="act-empty">Add travellers to the holiday to split this payment.</p>`; updLeft(); return; }
+      if (!ids.length) { rowsEl.innerHTML = `<p class="act-empty">Add who's going to the holiday to split this cost.</p>`; updLeft(); return; }
       rowsEl.replaceChildren(...ids.map((id) => {
         const payer = payers.find((x) => x.id === id);
         const v = shares[id] || 0;
         const r = el(`<div class="share-row">
-            <span class="pr-text"><b>${esc(personName(id))}</b><small>${payer ? esc(forText(payer)) : "no longer paying"}</small></span>
-            <span class="share-amt"><span class="money"><i>${SYMBOL[p.currency]}</i><input type="text" inputmode="decimal" autocomplete="off" data-payer="${id}" aria-label="${esc(personName(id))}'s share"${p.split === "custom" ? "" : " readonly"}></span>
-              ${p.currency === "EUR" ? `<small class="amt" data-gbp></small>` : ""}</span>
-            ${toggleHtml(!!p.received[id], `${personName(id)} has paid you`)}
+            <span class="pr-text"><b>${esc(personName(id))}</b><small>${payer ? esc(forText(payer)) : "no longer going"}</small></span>
+            <span class="share-amt"><span class="money"><i>${SYMBOL[c.currency]}</i><input type="text" inputmode="decimal" autocomplete="off" aria-label="${esc(personName(id))}'s share"${custom ? "" : " readonly tabindex=\"-1\""}></span>
+              ${c.currency === "EUR" ? `<small class="amt" data-gbp></small>` : ""}</span>
           </div>`);
         const input = r.querySelector("input");
         input.value = moneyInput(v);
         const gb = r.querySelector("[data-gbp]");
         const setGbp = (val) => { if (gb) gb.textContent = cur.rate ? `≈ ${pounds0(Math.round(val * cur.rate))}` : ""; };
         setGbp(v);
-        input.addEventListener("input", () => {
-          const nv = parseMoney(input.value);
-          customShares[id] = nv || 0;
-          setGbp(nv || 0);
-          updLeft();
-        });
-        const tg = r.querySelector(".rcv");
-        tg.addEventListener("click", () => {
-          p.received[id] = !p.received[id];
-          if (!p.received[id]) delete p.received[id];
-          tg.setAttribute("aria-checked", String(!!p.received[id]));
-          if (p.received[id] && navigator.vibrate) navigator.vibrate(12);
-        });
+        input.addEventListener("input", () => { const nv = parseMoney(input.value); custom[id] = nv || 0; setGbp(nv || 0); updLeft(); });
         return r;
       }));
       updLeft();
@@ -660,38 +495,27 @@ export function mount(root, { open }) {
     function updLeft() {
       const out = d.querySelector("[data-left]");
       out.className = ""; out.textContent = "";
-      if (p.split !== "custom") return;
+      if (!custom) return;
       const amt = parseMoney(f.elements.amount.value) || 0;
-      const sum = Object.values(customShares || {}).reduce((s, v) => s + (v || 0), 0);
-      const left = amt - sum;
+      const left = amt - Object.values(custom).reduce((s, v) => s + (v || 0), 0);
       if (!amt) return;
       if (left === 0) { out.innerHTML = `${icon("check")}Split matches the amount`; out.className = "ok"; }
-      else if (left > 0) { out.textContent = `${money(left, p.currency)} still to share out`; out.className = "warn"; }
-      else { out.textContent = `${money(-left, p.currency)} too much`; out.className = "bad"; }
+      else if (left > 0) { out.textContent = `${money(left, c.currency)} still to share out`; out.className = "warn"; }
+      else { out.textContent = `${money(-left, c.currency)} too much`; out.className = "bad"; }
     }
-
-    if (p.split === "custom") customShares = { ...(p.shares || {}) };
-    f.addEventListener("input", () => { err.textContent = ""; });
-    d.addEventListener("click", (e) => { if (e.target.closest("[data-seg] button")) err.textContent = ""; });
-    f.elements.label.addEventListener("change", () => { p.label = f.elements.label.value; d.querySelector("[data-title]").textContent = p.label; });
-    f.elements.amount.addEventListener("input", () => { if (p.split !== "custom") drawShares(); else updLeft(); });
+    f.elements.amount.addEventListener("input", () => { if (!custom) drawShares(); else updLeft(); });
     wireSeg(d, "cur", (v) => {
-      p.currency = v;
+      c.currency = v;
       if (v === "EUR" && !readRate(d) && (meta.rates || {}).EUR) d.querySelector('[name="rate"]').value = meta.rates.EUR;
       d.querySelector("[data-sym]").textContent = SYMBOL[v];
       d.querySelector(".eur-only").hidden = v !== "EUR";
       drawShares();
     });
-    wireSeg(d, "status", (v) => {
-      p.status = v;
-      const lab = d.querySelector(".dated");
-      lab.hidden = v === "arrival";
-      lab.querySelector("[data-dl]").textContent = v === "paid" ? "Paid on" : "Due by";
-      if (v === "paid" && !f.elements.date.value) f.elements.date.value = todayIso();
-    });
+    wireSeg(d, "when", (v) => { c.when = v; });
     wireSeg(d, "split", (v) => {
-      if (v === "custom" && p.split !== "custom") customShares = sharesOf(tripById(tripId) || t, current()); // start from what it was
-      p.split = v;
+      err.textContent = "";
+      if (v === "custom" && !custom) custom = sharesOf(tripById(tripId) || t0, { ...current(), split: "equal" }); // start from the equal split
+      if (v === "equal") custom = null;
       drawShares();
     });
     wireRate(d, () => drawShares());
@@ -701,31 +525,32 @@ export function mount(root, { open }) {
     f.addEventListener("submit", (e) => {
       e.preventDefault();
       err.textContent = "";
+      const name = nameInput.value.trim();
       const amount = parseMoney(f.elements.amount.value);
+      if (!name) { err.textContent = "Give the cost a name."; nameInput.focus(); return; }
       if (!amount) { err.textContent = "Enter the amount."; f.elements.amount.focus(); return; }
       let rate = null;
-      if (p.currency === "EUR") { rate = readRate(d); if (!rate) { err.textContent = "Enter the exchange rate (or tap Today's rate)."; return; } }
-      const date = p.status === "arrival" ? "" : f.elements.date.value;
-      if (p.status === "due" && !date) { err.textContent = "Pick the date it's due by."; return; }
-      const out = { id: p.id, label: p.label, currency: p.currency, amount, rate, status: p.status, date, split: p.split, received: p.received };
-      if (p.split === "custom") {
-        const sum = Object.values(customShares).reduce((s, v) => s + (v || 0), 0);
-        if (sum !== amount) { err.textContent = sum < amount ? `Share out the full amount — ${money(amount - sum, p.currency)} left.` : `The shares add up to ${money(sum - amount, p.currency)} more than the amount.`; return; }
-        out.shares = Object.fromEntries(Object.entries(customShares).filter(([, v]) => v));
+      if (c.currency === "EUR") { rate = readRate(d); if (!rate) { err.textContent = "Enter the exchange rate (or tap Today's rate)."; return; } }
+      const out = {
+        id: c.id, type: c.type, name: name === typeLabel(c.type) ? "" : name, currency: c.currency, amount, rate,
+        when: c.when, supplierPaid: !!c.supplierPaid, split: custom ? "custom" : "equal", received: c.received
+      };
+      if (custom) {
+        const sum = Object.values(custom).reduce((s, v) => s + (v || 0), 0);
+        if (sum !== amount) { err.textContent = sum < amount ? `Share out the full amount — ${money(amount - sum, c.currency)} left.` : `The shares add up to ${money(sum - amount, c.currency)} more than the amount.`; return; }
+        out.shares = Object.fromEntries(Object.entries(custom).filter(([, v]) => v));
       }
       const tt = clone(tripById(tripId));
-      tt.costs = tt.costs.map((x) => x.id !== costId ? x : {
-        ...x, payments: existing ? x.payments.map((q) => (q.id === p.id ? out : q)) : [...(x.payments || []), out]
-      });
+      tt.costs = existing ? tt.costs.map((x) => (x.id === c.id ? out : x)) : [...(tt.costs || []), out];
       saveTrip(tt);
       if (rate && rate !== (meta.rates || {}).EUR) saveMeta({ ...meta, rates: { ...(meta.rates || {}), EUR: rate } });
       d.close();
     });
     const del = d.querySelector("[data-del]");
     if (del) del.addEventListener("click", async () => {
-      if (!(await confirmDialog(`Delete this ${p.label.toLowerCase()} of ${money(existing.amount, existing.currency)}?`, "Delete", "Keep"))) return;
+      if (!(await confirmDialog(`Delete ${typeName(existing)} (${money(existing.amount, existing.currency)})?`, "Delete", "Keep"))) return;
       const tt = clone(tripById(tripId));
-      tt.costs = tt.costs.map((x) => x.id !== costId ? x : { ...x, payments: x.payments.filter((q) => q.id !== p.id) });
+      tt.costs = tt.costs.filter((x) => x.id !== c.id);
       saveTrip(tt);
       d.close();
     });
@@ -733,66 +558,10 @@ export function mount(root, { open }) {
   }
 
   // =====================================================================
-  // One payer: every share they owe, tick each off (or all at once)
-  // =====================================================================
-  function openPayer(tripId, payerId) {
-    const d = sheetShell("hol-payer-sheet", personName(payerId));
-    const draw = () => {
-      const t = tripById(tripId);
-      if (!t) { d.close(); return; }
-      const payer = payersOf(t).find((x) => x.id === payerId) || { id: payerId, for: [] };
-      const tot = tripTotals(t).byPayer[payerId] || { total: 0, received: 0 };
-      const rows = [];
-      for (const c of t.costs || []) for (const p of c.payments || []) {
-        const v = sharesOf(t, p)[payerId];
-        if (v) rows.push({ c, p, v });
-      }
-      d.innerHTML = `
-        <div class="sheet-grip"></div>
-        <h2>${esc(personName(payerId))}</h2>
-        <p class="payer-sub">${esc(forText(payer))} · <span class="amt">${pounds0(tot.received)}</span> of <span class="amt">${pounds0(tot.total)}</span> received</p>
-        <div class="payer-rows">${rows.length ? "" : `<p class="act-empty">Nothing to pay yet.</p>`}</div>
-        <div class="sheet-buttons">
-          ${rows.some((r) => !(r.p.received || {})[payerId]) ? `<button type="button" class="btn-ghost" data-all>All received</button>` : ""}
-          <button type="button" class="btn" data-done>Done</button>
-        </div>`;
-      const list = d.querySelector(".payer-rows");
-      rows.forEach(({ c, p, v }) => {
-        const on = !!(p.received || {})[payerId];
-        const r = el(`<div class="share-row">
-            <span class="pr-text"><b>${esc(typeName(c))} · ${esc(p.label)}</b><small>${p.status === "paid" ? "Paid to supplier" : p.status === "arrival" ? "Pay on arrival" : p.date ? `Due ${niceDate(p.date)}` : "Due"}</small></span>
-            <span class="pr-fig"><b class="amt">${money(v, p.currency)}</b>${p.currency === "EUR" ? `<small class="amt">≈ ${pounds0(toGBP(v, p))}</small>` : ""}</span>
-            ${toggleHtml(on, `${typeName(c)} ${p.label} received`)}
-          </div>`);
-        r.querySelector(".rcv").addEventListener("click", () => setReceived(tripId, [[c.id, p.id]], payerId, !on));
-        list.appendChild(r);
-      });
-      const all = d.querySelector("[data-all]");
-      if (all) all.addEventListener("click", () => setReceived(tripId, rows.map(({ c, p }) => [c.id, p.id]), payerId, true));
-      d.querySelector("[data-done]").addEventListener("click", () => d.close());
-    };
-    draw();
-    showDialog(d, draw);
-  }
-  function setReceived(tripId, which, payerId, on) {
-    const tt = clone(tripById(tripId));
-    for (const c of tt.costs || []) for (const p of c.payments || []) {
-      if (!which.some(([ci, pi]) => ci === c.id && pi === p.id)) continue;
-      p.received = p.received || {};
-      if (on) p.received[payerId] = true; else delete p.received[payerId];
-    }
-    if (on && navigator.vibrate) navigator.vibrate(12);
-    // Show it straight away, then save
-    const i = trips.findIndex((t) => t.id === tripId);
-    if (i >= 0) { trips[i] = tt; render(); }
-    saveTrip(tt);
-  }
-
-  // =====================================================================
   // People
   // =====================================================================
   const personInUse = (id) => trips.some((t) => (t.travellers || []).some((x) => x.personId === id || x.payerId === id) ||
-    (t.costs || []).some((c) => (c.payments || []).some((p) => (p.received || {})[id] || (p.shares || {})[id])));
+    (t.costs || []).some((c) => (c.received || {})[id] || (c.shares || {})[id]));
 
   function openPeople() {
     const d = sheetShell("lists-sheet hol-people", "People");
