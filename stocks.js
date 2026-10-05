@@ -17,7 +17,8 @@ import { db } from "./app.js";
 //   pocketvault/{you}/meta/stocks    { scriptUrl, secret }
 //   pocketvault/{you}/stocks/{id}    { ticker, market "LSE"|"US", order,
 //                                      price, changepct, currency, name,
-//                                      closes: [[date, close], …newest first], fetchedAt (ms), error }
+//                                      closes: [{ d: date, c: close }, …newest first], fetchedAt (ms), error }
+// (Firestore can't store arrays inside arrays, so each close is a small object.)
 const stocksMeta = () => doc("meta", "stocks");
 const stocksCol = () => col("stocks");
 const AUTO_GAP_MS = 2 * 60 * 1000; // don't re-fetch on every tap if you just did
@@ -36,8 +37,11 @@ function shiftIso(iso, { days = 0, months = 0 }) {
 // Day / week / month changes as fractions (0.012 = +1.2%), or null.
 // Day uses Google's own change since yesterday's close; week and month
 // compare today's price with the close a week / a month ago.
+const toStore = (closes) => (closes || []).slice(0, 45).map(([d, c]) => ({ d, c }));
+const fromStore = (closes) => (closes || []).map((x) => (Array.isArray(x) ? x : [x.d, x.c])).filter(([d, c]) => d && typeof c === "number");
+
 export function changes(s) {
-  const closes = s.closes || [];
+  const closes = fromStore(s.closes);
   const price = typeof s.price === "number" ? s.price : closes.length ? closes[0][1] : null;
   if (price == null) return { price: null, day: null, week: null, month: null };
   const ref = s.fetchedAt ? todayIso(new Date(s.fetchedAt)) : (closes[0] || [])[0];
@@ -70,6 +74,7 @@ const ERR_TEXT = {
   network: "Couldn't reach your price script — check the signal, or the script address in settings (gear)",
   secret: "The price script didn't accept the secret — check it in settings (gear)",
   script: "The price script returned an error — try again in a minute",
+  save: "Got the prices but couldn't save them — try again",
   notfound: "Google Finance doesn't recognise this ticker"
 };
 
@@ -125,18 +130,20 @@ export function createStocks({ pane, open, icon, onDialog }) {
     busy = true; banner = ""; render();
     try {
       const data = await fetchPrices(shares.map(symbolOf), meta);
-      const batch = writeBatch(db);
-      const now = Date.now();
-      shares.forEach((s) => {
-        const r = data[symbolOf(s)];
-        if (!r) return;
-        if (r.error) batch.update(fsDoc(stocksCol(), s.id), { error: "notfound" });
-        else batch.update(fsDoc(stocksCol(), s.id), {
-          price: r.price, changepct: r.changepct, currency: r.currency || "", name: r.name || "",
-          closes: (r.closes || []).slice(0, 45), fetchedAt: now, error: ""
+      try {
+        const batch = writeBatch(db);
+        const now = Date.now();
+        shares.forEach((s) => {
+          const r = data[symbolOf(s)];
+          if (!r) return;
+          if (r.error) batch.update(fsDoc(stocksCol(), s.id), { error: "notfound" });
+          else batch.update(fsDoc(stocksCol(), s.id), {
+            price: r.price, changepct: r.changepct, currency: r.currency || "", name: r.name || "",
+            closes: toStore(r.closes), fetchedAt: now, error: ""
+          });
         });
-      });
-      await writeOffline(batch.commit());
+        await writeOffline(batch.commit());
+      } catch (we) { console.error(we); throw { kind: "save" }; }
     } catch (e) {
       banner = ERR_TEXT[(e && e.kind) || "network"];
     } finally {
@@ -246,10 +253,12 @@ export function createStocks({ pane, open, icon, onDialog }) {
         const r = (await fetchPrices([symbolOf(s)], meta))[symbolOf(s)];
         if (!r || r.error) throw { kind: "notfound" };
         const order = Math.max(0, ...shares.map((x) => x.order || 0)) + 1;
-        await writeOffline(setDoc(fsDoc(stocksCol()), {
-          ...s, order, price: r.price, changepct: r.changepct, currency: r.currency || "", name: r.name || "",
-          closes: (r.closes || []).slice(0, 45), fetchedAt: Date.now(), error: ""
-        }));
+        try {
+          await writeOffline(setDoc(fsDoc(stocksCol()), {
+            ...s, order, price: r.price, changepct: r.changepct, currency: r.currency || "", name: r.name || "",
+            closes: toStore(r.closes), fetchedAt: Date.now(), error: ""
+          }));
+        } catch (we) { console.error(we); throw { kind: "save" }; }
         d.close();
       } catch (ex) {
         const kind = (ex && ex.kind) || "network";
