@@ -15,6 +15,7 @@ import {
   money, money0, signed0, pctText, rateText, parseMoney, moneyInput,
   usualTotal, computeAll, xirrFor, isaUsed, pbSummary
 } from "./investments-data.js";
+import { createStocks } from "./stocks.js";
 
 const TYPE_NAMES = { deposit: "Deposit", withdraw: "Withdrawal", move: "Move between pots" };
 
@@ -31,7 +32,13 @@ export function mount(root, { open }) {
   const live = new Set();       // redraw functions of open panels / sheets
 
   let tab = "t212";
-  try { if (sessionStorage.getItem("pv-inv-tab") === "pb") tab = "pb"; } catch {}
+  try { const t = sessionStorage.getItem("pv-inv-tab"); if (t === "pb" || t === "stocks") tab = t; } catch {}
+
+  // Stocks tab: its own module, sharing this screen's header buttons
+  const stocks = createStocks({
+    pane: root.querySelector('[data-pane="stocks"]'), open, icon: (n) => window.PV.icon(n),
+    onDialog: (d) => { document.body.appendChild(d); dialogs.add(d); d.addEventListener("close", () => { d.remove(); dialogs.delete(d); }); }
+  });
 
   const writeOffline = (p) => Promise.race([p, new Promise((r) => setTimeout(r, 600))]);
   const saveMeta = (m) => writeOffline(setDoc(investMeta(), m));
@@ -63,28 +70,35 @@ export function mount(root, { open }) {
   root.querySelectorAll(".inv-tabs [data-tab]").forEach((b) => b.addEventListener("click", () => {
     tab = b.dataset.tab;
     try { sessionStorage.setItem("pv-inv-tab", tab); } catch {}
+    showTab();
     render();
   }));
 
   $("[data-inv-add]").addEventListener("click", () => {
+    if (tab === "stocks") { stocks.add(); return; }
     if (!loaded.meta) return;
     if (tab === "pb") openPB(null);
     else if (!(meta.pies || []).length) openSettings();
     else openMoney({});
   });
-  $("[data-inv-settings]").addEventListener("click", () => loaded.meta && openSettings());
+  $("[data-inv-settings]").addEventListener("click", () => (tab === "stocks" ? stocks.settings() : loaded.meta && openSettings()));
 
   // ---------- Drawing ----------
   const el = (html) => { const t = document.createElement("template"); t.innerHTML = html.trim(); return t.content.firstElementChild; };
   const tone = (n) => (n > 0 ? "up" : n < 0 ? "down" : "");
 
+  // Which tab is showing (works before the data has loaded)
+  function showTab() {
+    root.querySelectorAll(".inv-tabs [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === tab)));
+    ["t212", "pb", "stocks"].forEach((k) => { $(`[data-pane="${k}"]`).hidden = tab !== k; });
+    $("[data-inv-add]").setAttribute("aria-label", tab === "pb" ? "Add a Premium Bonds entry" : tab === "stocks" ? "Add a share" : "Add money");
+    stocks.show(tab === "stocks");
+  }
+  showTab();
+
   function render() {
     if (!loaded.meta || !loaded.invest || !loaded.pb) return;
     calc = computeAll(meta, events);
-    root.querySelectorAll(".inv-tabs [data-tab]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.tab === tab)));
-    $('[data-pane="t212"]').hidden = tab !== "t212";
-    $('[data-pane="pb"]').hidden = tab !== "pb";
-    $("[data-inv-add]").setAttribute("aria-label", tab === "pb" ? "Add a Premium Bonds entry" : "Add money");
     renderT212();
     renderPB();
     live.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
@@ -1030,6 +1044,7 @@ export function mount(root, { open }) {
   return () => {
     stops.forEach((s) => { try { s(); } catch {} });
     stops = [];
+    stocks.stop();
     [...dialogs].forEach((d) => { try { d.close(); } catch {} });
   };
 }

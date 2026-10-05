@@ -8,7 +8,7 @@
 // never hangs. Firebase and fonts are left alone.
 // Bump CACHE with each upload that changes the file list.
 
-const CACHE = "pocketvault-v19";
+const CACHE = "pocketvault-v20";
 const CORE = [
   "./",
   "./index.html",
@@ -20,7 +20,7 @@ const CORE = [
   "./auth-guard.js",
   "./vault.html", "./vault.js",
   "./bills.html", "./bills.js", "./bills-data.js",
-  "./investments.html", "./investments.js", "./investments-data.js",
+  "./investments.html", "./investments.js", "./investments-data.js", "./stocks.js",
   "./holidays.html", "./holidays.js", "./holidays-data.js",
   "./earnings.html", "./earnings.js", "./earnings-data.js",
   "./manifest.json",
