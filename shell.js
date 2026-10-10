@@ -22,10 +22,14 @@
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     note: '<path d="M4 4h16v12l-4 4H4z"/><path d="M16 20v-4h4"/><path d="M8 9h8M8 13h5"/>',
     chevron: '<path d="M6 9l6 6 6-6"/>',
+    lock: '<rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/>',
+    key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L20 3"/><path d="M16.5 6.5l3 3"/><path d="M14 9l2.5 2.5"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
     refresh: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
     earnings: '<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><circle cx="12" cy="12" r="2.8"/><path d="M6 9.5v5M18 9.5v5"/>'
   };
-  var THIN = { eye: 1, eyeOff: 1, back: 1, alert: 1, gear: 1, plus: 1, pen: 1, x: 1, check: 1, note: 1, chevron: 1, refresh: 1 };
+  var THIN = { eye: 1, eyeOff: 1, back: 1, alert: 1, gear: 1, plus: 1, pen: 1, x: 1, check: 1, note: 1, chevron: 1, refresh: 1, lock: 1, copy: 1, search: 1 };
 
   function icon(name, strokeWidth) {
     var sw = strokeWidth || (THIN[name] ? 1.8 : 1.4);

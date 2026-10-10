@@ -1,5 +1,6 @@
 // vault.js — the home screen: date, deposit boxes, live summaries
 
+import { col } from "./app.js";
 import { getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { billsCol, amountThisPeriod, money, nextDue as findNextDue, ordinal } from "./bills-data.js";
 import { earningsCol, summarise, currentTaxYear, taxYearLabel, pounds } from "./earnings-data.js";
@@ -71,6 +72,12 @@ const summaries = {
     if (!meta.pies.length && !bonds.length) return null;
     const total = computeAll(meta, events).value + pbSummary(bonds).held;
     return { figure: money0(total), line: "current value" };
+  },
+  credentials: async () => {
+    // Just the number of accounts — the details stay encrypted
+    const snap = await getDocs(col("credentials"));
+    const n = snap.docs.length;
+    return n ? { line: `${n} account${n === 1 ? "" : "s"}` } : null;
   },
   holidays: async () => {
     // Next trip and a countdown

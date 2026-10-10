@@ -1065,3 +1065,88 @@ button.sr-take { border: none; background: none; padding: 8px 2px; color: var(--
 .stk-sheet .tp-hint { display: block; margin-bottom: 12px; }
 .stk-unit { margin-bottom: 12px; }
 .stk-sheet .btn:disabled { opacity: 0.5; }
+
+/* =====================================================================
+   v23: Credentials + tighter vault so everything fits on one screen
+   ===================================================================== */
+.view[data-view="vault"] { gap: 14px; }
+.view[data-view="vault"] .dateline { padding-bottom: 8px; }
+.view[data-view="vault"] .next-due { padding: 10px 14px; }
+.box { min-height: 150px; padding: 16px; gap: 10px; }
+.box-glyph svg { width: 34px; height: 34px; }
+.box-title { font-size: clamp(19px, 5.8vw, 24px); }
+.box-wide {
+  min-height: 68px; padding: 0 16px; flex-direction: row; align-items: center; justify-content: flex-start; gap: 14px;
+}
+.box-wide .box-glyph svg { width: 30px; height: 30px; }
+.box-wide .box-body { flex: 1; flex-direction: row; align-items: baseline; justify-content: space-between; gap: 10px; }
+.box-wide .box-line { white-space: nowrap; }
+.box-chev { color: var(--muted); display: flex; }
+.box-chev svg { width: 18px; height: 18px; transform: scaleX(-1); }
+
+.view[data-view="credentials"] { gap: 12px; }
+.view[data-view="credentials"] .subbar { gap: 8px; }
+.view[data-view="credentials"] .subbar h1 { font-size: clamp(24px, 7.6vw, 30px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.subbar [hidden] { display: none; }
+.cred-lockcard { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; margin-top: 16px; padding: 24px 18px; }
+.cred-lockcard .box-glyph svg { width: 42px; height: 42px; }
+.cred-lockcard h2 { margin: 0; font-family: var(--font-cond); font-weight: 700; font-size: 24px; letter-spacing: 0.04em; text-transform: uppercase; }
+.cred-lockcard p { margin: 0; font-size: 14.5px; color: var(--muted); }
+.cred-unlock { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.cred-unlock input {
+  width: 100%; min-height: 48px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--bg); color: var(--text); font-family: var(--font); font-size: 17px;
+}
+.cred-unlock input:focus { outline: 2px solid var(--brass); outline-offset: 0; border-color: transparent; }
+.cred-unlock .tp-hint { text-align: left; }
+.cred-lockcard p.cred-hint { color: var(--text); font-style: italic; }
+.cred-search {
+  display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--box); color: var(--muted);
+}
+.cred-search svg { width: 18px; height: 18px; flex: none; }
+.cred-search input { flex: 1; min-width: 0; border: none; background: transparent; color: var(--text); font-family: var(--font); font-size: 16px; outline: none; min-height: 42px; }
+.cred-list-wrap { display: flex; flex-direction: column; gap: 6px; }
+.cred-list { display: flex; flex-direction: column; }
+.cred-letter { padding: 10px 0 3px; border-bottom: 1px solid var(--border); font-family: var(--font-cond); font-weight: 700; font-size: 13px; letter-spacing: 0.12em; color: var(--brass); }
+.cred-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 4px 0;
+  border: none; border-bottom: 1px solid var(--inner); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.cred-row .pr-text b { font-size: 16px; }
+.cred-row .pr-text small { font-size: 12.5px; }
+.cred-chev { color: var(--faint); display: flex; }
+.cred-chev svg { width: 16px; height: 16px; transform: scaleX(-1); }
+.cred-settings { align-self: center; margin-top: 8px; }
+
+.cred-view, .cred-edit, .cred-code-sheet { padding-top: 8px; }
+.cred-view .sheet-grip, .cred-edit .sheet-grip, .cred-code-sheet .sheet-grip { margin-bottom: 8px; }
+.cred-view-head { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+.cred-view-head h2 { flex: 1; margin: 0; font-size: 26px; overflow-wrap: anywhere; }
+.cred-edit-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer;
+  font-family: var(--font-cond); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.cred-edit-btn svg { width: 15px; height: 15px; }
+.cred-field { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--inner); }
+.cf-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cf-text small { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cf-val { font-size: 17px; overflow-wrap: anywhere; }
+.cf-val.mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: 0.02em; }
+.cred-field .square-btn { width: 42px; height: 42px; }
+.cred-field .square-btn svg { width: 18px; height: 18px; }
+.cred-view-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; font-size: 13px; }
+.cred-view-foot .btn-ghost { min-width: 120px; }
+.cred-edit h2 { margin: 0 0 8px; font-size: 24px; }
+.cred-edit .form { gap: 9px; }
+.cred-edit .fld > span:first-child { font-size: 12.5px; }
+.cred-code {
+  margin: 4px 0 14px; padding: 14px; border-radius: 6px; border: 1px dashed var(--brass); text-align: center;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 19px; letter-spacing: 0.05em; color: var(--brass);
+  user-select: all; overflow-wrap: anywhere;
+}
+.cred-ack { margin-bottom: 12px; }
+.cred-code-sheet .btn:disabled { opacity: 0.45; }
+.cred-set-rows { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 6px 0 8px; }
+.cred-set-rows .set-pot:last-child { border-bottom: none; }

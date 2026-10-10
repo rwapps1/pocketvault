@@ -10,8 +10,8 @@
 import { open, getUser, secureSignOut, VERSION } from "./app.js";
 import { lockSupported, lockEnabled, enableLock, disableLock, lockAfterMs, setLockAfter } from "./lock.js";
 
-const VIEWS = ["vault", "bills", "investments", "holidays", "earnings"]; // earnings: vault box only, not in the menu bar
-const TITLES = { vault: "PocketVault", bills: "Bills", investments: "Investments", holidays: "Holidays", earnings: "Earnings" };
+const VIEWS = ["vault", "bills", "investments", "holidays", "earnings", "credentials"]; // earnings, credentials: vault box only, not in the menu bar
+const TITLES = { vault: "PocketVault", bills: "Bills", investments: "Investments", holidays: "Holidays", earnings: "Earnings", credentials: "Credentials" };
 const viewport = document.getElementById("viewport");
 const tabbar = document.querySelector(".tabbar");
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
